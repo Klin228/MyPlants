@@ -23,9 +23,11 @@ export default function AddPlantForm({ onAddPlant }: AddPlantFormProps) {
     
     const priceNum = parseFloat(price)
     if (!name.trim() || !photoUrl.trim() || isNaN(priceNum) || priceNum <= 0) {
+      console.log('Form validation failed:', { name, photoUrl, price, priceNum })
       return
     }
 
+    console.log('Form submitted, calling onAddPlant with:', { name, photoUrl, price: priceNum })
     onAddPlant({
       name: name.trim(),
       photoUrl: photoUrl.trim(),

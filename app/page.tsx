@@ -40,7 +40,14 @@ export default function Home() {
       id: Date.now().toString(),
       ...plantData
     }
+    console.log('Adding new plant:', newPlant)
     setPlants([...plants, newPlant])
+    console.log('Updated plants array length:', plants.length + 1)
+  }
+
+  // Handle deleting a plant
+  const handleDeletePlant = (id: string) => {
+    setPlants(plants.filter(plant => plant.id !== id))
   }
 
   // Calculate total price
@@ -54,7 +61,7 @@ export default function Home() {
       
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
         {plants.map((plant) => (
-          <PlantCard key={plant.id} plant={plant} />
+          <PlantCard key={plant.id} plant={plant} onDelete={handleDeletePlant} />
         ))}
       </div>
 
