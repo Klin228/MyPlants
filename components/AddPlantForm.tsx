@@ -1,13 +1,7 @@
 'use client'
 
 import { useState, FormEvent } from 'react'
-
-interface Plant {
-  id: string
-  name: string
-  photoUrl: string
-  price: number
-}
+import type { Plant } from '@/lib/plantStorage'
 
 interface AddPlantFormProps {
   onAddPlant: (plant: Omit<Plant, 'id'>) => void

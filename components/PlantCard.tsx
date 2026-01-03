@@ -1,9 +1,4 @@
-interface Plant {
-  id: string
-  name: string
-  photoUrl: string
-  price: number
-}
+import type { Plant } from '@/lib/plantStorage'
 
 interface PlantCardProps {
   plant: Plant
