@@ -34,16 +34,28 @@ export default function AddPlantForm({ onAddPlant }: AddPlantFormProps) {
 
   return (
     <form onSubmit={handleSubmit} style={{
-      padding: '1.5rem',
+      padding: '1rem',
       border: '1px solid #ddd',
       borderRadius: '8px',
-      marginBottom: '2rem',
+      marginBottom: '1.5rem',
       backgroundColor: '#fff'
     }}>
-      <h2 style={{ marginTop: 0, marginBottom: '1rem' }}>Add New Plant</h2>
+      <h2 style={{ 
+        marginTop: 0, 
+        marginBottom: '1rem',
+        fontSize: '1.25rem',
+        fontWeight: 'bold'
+      }}>
+        Add New Plant
+      </h2>
       
       <div style={{ marginBottom: '1rem' }}>
-        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+        <label style={{ 
+          display: 'block', 
+          marginBottom: '0.5rem', 
+          fontWeight: 'bold',
+          fontSize: '0.95rem'
+        }}>
           Plant Name:
         </label>
         <input
@@ -52,17 +64,23 @@ export default function AddPlantForm({ onAddPlant }: AddPlantFormProps) {
           onChange={(e) => setName(e.target.value)}
           style={{
             width: '100%',
-            padding: '0.5rem',
+            padding: '0.75rem',
             border: '1px solid #ddd',
-            borderRadius: '4px',
-            fontSize: '1rem'
+            borderRadius: '6px',
+            fontSize: '16px',
+            boxSizing: 'border-box'
           }}
           required
         />
       </div>
 
       <div style={{ marginBottom: '1rem' }}>
-        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+        <label style={{ 
+          display: 'block', 
+          marginBottom: '0.5rem', 
+          fontWeight: 'bold',
+          fontSize: '0.95rem'
+        }}>
           Photo URL:
         </label>
         <input
@@ -71,17 +89,23 @@ export default function AddPlantForm({ onAddPlant }: AddPlantFormProps) {
           onChange={(e) => setPhotoUrl(e.target.value)}
           style={{
             width: '100%',
-            padding: '0.5rem',
+            padding: '0.75rem',
             border: '1px solid #ddd',
-            borderRadius: '4px',
-            fontSize: '1rem'
+            borderRadius: '6px',
+            fontSize: '16px',
+            boxSizing: 'border-box'
           }}
           required
         />
       </div>
 
-      <div style={{ marginBottom: '1rem' }}>
-        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+      <div style={{ marginBottom: '1.25rem' }}>
+        <label style={{ 
+          display: 'block', 
+          marginBottom: '0.5rem', 
+          fontWeight: 'bold',
+          fontSize: '0.95rem'
+        }}>
           Price:
         </label>
         <input
@@ -92,10 +116,11 @@ export default function AddPlantForm({ onAddPlant }: AddPlantFormProps) {
           onChange={(e) => setPrice(e.target.value)}
           style={{
             width: '100%',
-            padding: '0.5rem',
+            padding: '0.75rem',
             border: '1px solid #ddd',
-            borderRadius: '4px',
-            fontSize: '1rem'
+            borderRadius: '6px',
+            fontSize: '16px',
+            boxSizing: 'border-box'
           }}
           required
         />
@@ -104,14 +129,16 @@ export default function AddPlantForm({ onAddPlant }: AddPlantFormProps) {
       <button
         type="submit"
         style={{
-          padding: '0.75rem 1.5rem',
+          width: '100%',
+          padding: '1rem',
           backgroundColor: '#4CAF50',
           color: 'white',
           border: 'none',
-          borderRadius: '4px',
-          fontSize: '1rem',
+          borderRadius: '6px',
+          fontSize: '1.1rem',
           cursor: 'pointer',
-          fontWeight: 'bold'
+          fontWeight: 'bold',
+          minHeight: '48px'
         }}
       >
         Add Plant
