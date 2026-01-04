@@ -5,9 +5,10 @@ import type { Plant } from '@/lib/plantStorage'
 
 interface AddPlantFormProps {
   onAddPlant: (plant: Omit<Plant, 'id'>) => void
+  onCancel: () => void
 }
 
-export default function AddPlantForm({ onAddPlant }: AddPlantFormProps) {
+export default function AddPlantForm({ onAddPlant, onCancel }: AddPlantFormProps) {
   const [name, setName] = useState('')
   const [photoUrl, setPhotoUrl] = useState('')
   const [price, setPrice] = useState('')
@@ -126,23 +127,43 @@ export default function AddPlantForm({ onAddPlant }: AddPlantFormProps) {
         />
       </div>
 
-      <button
-        type="submit"
-        style={{
-          width: '100%',
-          padding: '1rem',
-          backgroundColor: '#4CAF50',
-          color: 'white',
-          border: 'none',
-          borderRadius: '6px',
-          fontSize: '1.1rem',
-          cursor: 'pointer',
-          fontWeight: 'bold',
-          minHeight: '48px'
-        }}
-      >
-        Add Plant
-      </button>
+      <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <button
+          type="button"
+          onClick={onCancel}
+          style={{
+            flex: 1,
+            padding: '1rem',
+            backgroundColor: '#f5f5f5',
+            color: '#333',
+            border: '1px solid #ddd',
+            borderRadius: '6px',
+            fontSize: '1rem',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            minHeight: '48px'
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          style={{
+            flex: 1,
+            padding: '1rem',
+            backgroundColor: '#4CAF50',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            fontSize: '1.1rem',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            minHeight: '48px'
+          }}
+        >
+          Add Plant
+        </button>
+      </div>
     </form>
   )
 }

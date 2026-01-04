@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import PlantCard from '@/components/PlantCard'
 import AddPlantForm from '@/components/AddPlantForm'
 import { loadPlants, savePlants, type Plant } from '@/lib/plantStorage'
@@ -9,6 +9,8 @@ export default function Home() {
   // Plants state - initialize as empty, will load from localStorage
   const [plants, setPlants] = useState<Plant[]>([])
   const [hasLoadedFromStorage, setHasLoadedFromStorage] = useState(false)
+  const [isFormOpen, setIsFormOpen] = useState(false)
+  const formRef = useRef<HTMLDivElement>(null)
 
   // Load plants from localStorage on mount
   useEffect(() => {
@@ -33,6 +35,7 @@ export default function Home() {
     }
     const updatedPlants = [...plants, newPlant]
     setPlants(updatedPlants)
+    setIsFormOpen(false)
   }
 
   // Handle deleting a plant
@@ -41,12 +44,22 @@ export default function Home() {
     setPlants(remainingPlants)
   }
 
+  // Handle opening the form and scrolling to it
+  const handleOpenForm = () => {
+    setIsFormOpen(true)
+    // Scroll to form after it renders
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 0)
+  }
+
   // Calculate total price
   const totalPrice = plants.reduce((sum, plant) => sum + plant.price, 0)
 
   return (
     <main style={{ 
       padding: '1rem', 
+      paddingBottom: '5rem',
       maxWidth: '1200px', 
       margin: '0 auto', 
       minHeight: '100vh'
@@ -59,7 +72,14 @@ export default function Home() {
         My Plant Collection
       </h1>
       
-      <AddPlantForm onAddPlant={handleAddPlant} />
+      {isFormOpen && (
+        <div ref={formRef}>
+          <AddPlantForm 
+            onAddPlant={handleAddPlant} 
+            onCancel={() => setIsFormOpen(false)}
+          />
+        </div>
+      )}
       
       {plants.length === 0 ? (
         <div style={{
@@ -79,32 +99,68 @@ export default function Home() {
             margin: 0,
             color: '#888'
           }}>
-            Add your first plant above to get started!
+            Tap the button below to add your first plant!
           </p>
         </div>
       ) : (
-        <>
-          <div style={{ 
-            display: 'flex', 
-            flexDirection: 'column',
-            gap: '1rem', 
-            marginBottom: '1.5rem' 
-          }}>
-            {plants.map((plant) => (
-              <PlantCard key={plant.id} plant={plant} onDelete={handleDeletePlant} />
-            ))}
-          </div>
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          gap: '1rem', 
+          marginBottom: '1.5rem' 
+        }}>
+          {plants.map((plant) => (
+            <PlantCard key={plant.id} plant={plant} onDelete={handleDeletePlant} />
+          ))}
+        </div>
+      )}
 
-          <div style={{ 
-            padding: '1rem', 
-            backgroundColor: '#f5f5f5', 
-            borderRadius: '8px', 
-            textAlign: 'center',
-            fontSize: '1.1rem'
-          }}>
-            <strong>Total Price: ${totalPrice.toFixed(2)}</strong>
-          </div>
-        </>
+      {/* Sticky Total Price Bar */}
+      <div style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: '#4CAF50',
+        color: 'white',
+        padding: '0.75rem 1rem',
+        textAlign: 'center',
+        fontSize: '1rem',
+        fontWeight: 'bold',
+        boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.1)',
+        zIndex: 999
+      }}>
+        Total: ${totalPrice.toFixed(2)}
+      </div>
+
+      {/* Floating Action Button */}
+      {!isFormOpen && (
+        <button
+          onClick={handleOpenForm}
+          style={{
+            position: 'fixed',
+            bottom: '4.5rem',
+            right: '1.5rem',
+            padding: '0.875rem 1.5rem',
+            borderRadius: '28px',
+            backgroundColor: '#4CAF50',
+            color: 'white',
+            border: 'none',
+            fontSize: '1rem',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            minHeight: '48px',
+            whiteSpace: 'nowrap'
+          }}
+          aria-label="Add plant"
+        >
+          Add plant
+        </button>
       )}
     </main>
   )
