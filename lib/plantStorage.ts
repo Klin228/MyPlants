@@ -9,9 +9,9 @@ const STORAGE_KEY = 'plant-collection'
 
 export function loadPlants(): Plant[] {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) {
-      return JSON.parse(stored) as Plant[]
+    const storedData = localStorage.getItem(STORAGE_KEY)
+    if (storedData) {
+      return JSON.parse(storedData) as Plant[]
     }
     return []
   } catch (error) {

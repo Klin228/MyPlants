@@ -15,15 +15,15 @@ export default function AddPlantForm({ onAddPlant }: AddPlantFormProps) {
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     
-    const priceNum = parseFloat(price)
-    if (!name.trim() || !photoUrl.trim() || isNaN(priceNum) || priceNum <= 0) {
+    const parsedPrice = parseFloat(price)
+    if (!name.trim() || !photoUrl.trim() || isNaN(parsedPrice) || parsedPrice <= 0) {
       return
     }
 
     onAddPlant({
       name: name.trim(),
       photoUrl: photoUrl.trim(),
-      price: priceNum
+      price: parsedPrice
     })
 
     // Reset form

@@ -2,7 +2,7 @@ import type { Plant } from '@/lib/plantStorage'
 
 interface PlantCardProps {
   plant: Plant
-  onDelete: (id: string) => void
+  onDelete: (plantId: string) => void
 }
 
 export default function PlantCard({ plant, onDelete }: PlantCardProps) {

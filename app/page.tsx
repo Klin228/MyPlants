@@ -29,7 +29,7 @@ const DEFAULT_PLANTS: Plant[] = [
 export default function Home() {
   // Plants state - initialize as empty, will load from localStorage
   const [plants, setPlants] = useState<Plant[]>([])
-  const [isInitialized, setIsInitialized] = useState(false)
+  const [hasLoadedFromStorage, setHasLoadedFromStorage] = useState(false)
 
   // Load plants from localStorage on mount
   useEffect(() => {
@@ -39,22 +39,22 @@ export default function Home() {
     } else {
       setPlants(DEFAULT_PLANTS)
     }
-    setIsInitialized(true)
+    setHasLoadedFromStorage(true)
   }, [])
 
   // Save plants to localStorage whenever plants state changes (but only after initial load)
   useEffect(() => {
-    if (isInitialized) {
+    if (hasLoadedFromStorage) {
       savePlants(plants)
     }
-  }, [plants, isInitialized])
+  }, [plants, hasLoadedFromStorage])
 
   // Handle adding a new plant
-  const handleAddPlant = (plantData: Omit<Plant, 'id'>) => {
+  const handleAddPlant = (newPlantData: Omit<Plant, 'id'>) => {
     const plantId = Date.now().toString()
     const newPlant: Plant = {
       id: plantId,
-      ...plantData
+      ...newPlantData
     }
     const updatedPlants = [...plants, newPlant]
     setPlants(updatedPlants)
