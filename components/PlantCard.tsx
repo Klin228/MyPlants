@@ -3,9 +3,10 @@ import type { Plant } from '@/lib/plantStorage'
 interface PlantCardProps {
   plant: Plant
   onDelete: (plantId: string) => void
+  onEdit: (plant: Plant) => void
 }
 
-export default function PlantCard({ plant, onDelete }: PlantCardProps) {
+export default function PlantCard({ plant, onDelete, onEdit }: PlantCardProps) {
   return (
     <div style={{
       border: '1px solid #ddd',
@@ -14,8 +15,37 @@ export default function PlantCard({ plant, onDelete }: PlantCardProps) {
       backgroundColor: '#fff',
       overflow: 'hidden',
       display: 'flex',
-      flexDirection: 'column'
+      flexDirection: 'column',
+      position: 'relative'
     }}>
+      {/* Delete button - small icon in top-right corner */}
+      <button
+        onClick={() => onDelete(plant.id)}
+        style={{
+          position: 'absolute',
+          top: '0.5rem',
+          left: '0.5rem',
+          width: '36px',
+          height: '36px',
+          borderRadius: '50%',
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
+          color: 'white',
+          border: 'none',
+          cursor: 'pointer',
+          fontSize: '1.25rem',
+          fontWeight: 'bold',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10,
+          lineHeight: 1,
+          padding: 0
+        }}
+        aria-label="Delete plant"
+      >
+        ×
+      </button>
+
       <img 
         src={plant.photoUrl} 
         alt={plant.name}
@@ -43,21 +73,21 @@ export default function PlantCard({ plant, onDelete }: PlantCardProps) {
           ${plant.price.toFixed(2)}
         </p>
         <button
-          onClick={() => onDelete(plant.id)}
+          onClick={() => onEdit(plant)}
           style={{
+            width: '100%',
             padding: '0.75rem',
-            backgroundColor: '#f44336',
+            backgroundColor: '#2196F3',
             color: 'white',
             border: 'none',
             borderRadius: '6px',
             cursor: 'pointer',
             fontSize: '1rem',
             fontWeight: 'bold',
-            width: '100%',
             minHeight: '48px'
           }}
         >
-          Delete
+          Edit
         </button>
       </div>
     </div>

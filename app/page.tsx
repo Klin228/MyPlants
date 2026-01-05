@@ -10,6 +10,9 @@ export default function Home() {
   const [plants, setPlants] = useState<Plant[]>([])
   const [hasLoadedFromStorage, setHasLoadedFromStorage] = useState(false)
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [editingPlant, setEditingPlant] = useState<Plant | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortBy, setSortBy] = useState<'name' | 'price' | 'date'>('name')
   const formRef = useRef<HTMLDivElement>(null)
 
   // Load plants from localStorage on mount
@@ -38,6 +41,22 @@ export default function Home() {
     setIsFormOpen(false)
   }
 
+  // Handle updating an existing plant
+  const handleUpdatePlant = (updatedPlantData: Omit<Plant, 'id'>) => {
+    if (!editingPlant) return
+    
+    const updatedPlant: Plant = {
+      id: editingPlant.id,
+      ...updatedPlantData
+    }
+    const updatedPlants = plants.map(plant => 
+      plant.id === editingPlant.id ? updatedPlant : plant
+    )
+    setPlants(updatedPlants)
+    setEditingPlant(null)
+    setIsFormOpen(false)
+  }
+
   // Handle deleting a plant
   const handleDeletePlant = (plantIdToDelete: string) => {
     const remainingPlants = plants.filter(plant => plant.id !== plantIdToDelete)
@@ -46,6 +65,7 @@ export default function Home() {
 
   // Handle opening the form and scrolling to it
   const handleOpenForm = () => {
+    setEditingPlant(null)
     setIsFormOpen(true)
     // Scroll to form after it renders
     setTimeout(() => {
@@ -53,7 +73,36 @@ export default function Home() {
     }, 0)
   }
 
-  // Calculate total price
+  // Handle opening the form in edit mode
+  const handleEditPlant = (plant: Plant) => {
+    setEditingPlant(plant)
+    setIsFormOpen(true)
+    // Scroll to form after it renders
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 0)
+  }
+
+  // Filter plants based on search query
+  const filteredPlants = plants.filter(plant =>
+    plant.name.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  // Sort filtered plants
+  const sortedPlants = [...filteredPlants].sort((a, b) => {
+    switch (sortBy) {
+      case 'name':
+        return a.name.localeCompare(b.name)
+      case 'price':
+        return b.price - a.price // High to low
+      case 'date':
+        return parseInt(b.id) - parseInt(a.id) // Newest first (higher ID = newer)
+      default:
+        return 0
+    }
+  })
+
+  // Calculate total price (always use all plants, not filtered)
   const totalPrice = plants.reduce((sum, plant) => sum + plant.price, 0)
 
   return (
@@ -75,8 +124,12 @@ export default function Home() {
       {isFormOpen && (
         <div ref={formRef}>
           <AddPlantForm 
-            onAddPlant={handleAddPlant} 
-            onCancel={() => setIsFormOpen(false)}
+            onAddPlant={editingPlant ? handleUpdatePlant : handleAddPlant}
+            onCancel={() => {
+              setIsFormOpen(false)
+              setEditingPlant(null)
+            }}
+            initialPlant={editingPlant}
           />
         </div>
       )}
@@ -103,16 +156,81 @@ export default function Home() {
           </p>
         </div>
       ) : (
-        <div style={{ 
-          display: 'flex', 
-          flexDirection: 'column',
-          gap: '1rem', 
-          marginBottom: '1.5rem' 
-        }}>
-          {plants.map((plant) => (
-            <PlantCard key={plant.id} plant={plant} onDelete={handleDeletePlant} />
-          ))}
-        </div>
+        <>
+          {/* Search Input */}
+          <div style={{ marginBottom: '1rem' }}>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search plants by name..."
+              style={{
+                width: '100%',
+                padding: '0.875rem',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '16px',
+                boxSizing: 'border-box',
+                minHeight: '48px',
+                marginBottom: '0.75rem'
+              }}
+            />
+            
+            {/* Sort Control */}
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as 'name' | 'price' | 'date')}
+              style={{
+                width: '100%',
+                padding: '0.875rem',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '16px',
+                boxSizing: 'border-box',
+                minHeight: '48px',
+                backgroundColor: 'white',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="name">Sort by: Name (A-Z)</option>
+              <option value="price">Sort by: Price (High to Low)</option>
+              <option value="date">Sort by: Date Added (Newest First)</option>
+            </select>
+          </div>
+
+          {/* Plant List or No Results */}
+          {sortedPlants.length === 0 ? (
+            <div style={{
+              textAlign: 'center',
+              padding: '2rem 1rem',
+              color: '#666'
+            }}>
+              <p style={{
+                fontSize: '1rem',
+                margin: 0,
+                fontWeight: '500'
+              }}>
+                No plants found matching "{searchQuery}"
+              </p>
+            </div>
+          ) : (
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column',
+              gap: '1rem', 
+              marginBottom: '1.5rem' 
+            }}>
+              {sortedPlants.map((plant) => (
+                <PlantCard 
+                  key={plant.id} 
+                  plant={plant} 
+                  onDelete={handleDeletePlant}
+                  onEdit={handleEditPlant}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* Sticky Total Price Bar */}

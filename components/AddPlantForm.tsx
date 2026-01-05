@@ -1,36 +1,78 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
+import { useState, FormEvent, useEffect } from 'react'
 import type { Plant } from '@/lib/plantStorage'
 
 interface AddPlantFormProps {
   onAddPlant: (plant: Omit<Plant, 'id'>) => void
   onCancel: () => void
+  initialPlant?: Plant | null
 }
 
-export default function AddPlantForm({ onAddPlant, onCancel }: AddPlantFormProps) {
+export default function AddPlantForm({ onAddPlant, onCancel, initialPlant }: AddPlantFormProps) {
   const [name, setName] = useState('')
   const [photoUrl, setPhotoUrl] = useState('')
   const [price, setPrice] = useState('')
+  const [photoPreview, setPhotoPreview] = useState<string>('')
+
+  // Pre-fill form when editing
+  useEffect(() => {
+    if (initialPlant) {
+      setName(initialPlant.name)
+      setPhotoUrl(initialPlant.photoUrl)
+      setPhotoPreview(initialPlant.photoUrl)
+      setPrice(initialPlant.price.toString())
+    } else {
+      // Reset form when not editing
+      setName('')
+      setPhotoUrl('')
+      setPhotoPreview('')
+      setPrice('')
+    }
+  }, [initialPlant])
+
+  // Handle file upload
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Check if it's an image
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      const base64String = reader.result as string
+      setPhotoUrl(base64String)
+      setPhotoPreview(base64String)
+    }
+    reader.readAsDataURL(file)
+  }
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     
     const parsedPrice = parseFloat(price)
-    if (!name.trim() || !photoUrl.trim() || isNaN(parsedPrice) || parsedPrice <= 0) {
+    const finalPhotoUrl = photoPreview || photoUrl
+    if (!name.trim() || !finalPhotoUrl.trim() || isNaN(parsedPrice) || parsedPrice <= 0) {
       return
     }
 
     onAddPlant({
       name: name.trim(),
-      photoUrl: photoUrl.trim(),
+      photoUrl: finalPhotoUrl.trim(),
       price: parsedPrice
     })
 
-    // Reset form
-    setName('')
-    setPhotoUrl('')
-    setPrice('')
+    // Reset form only when adding (not editing)
+    if (!initialPlant) {
+      setName('')
+      setPhotoUrl('')
+      setPhotoPreview('')
+      setPrice('')
+    }
   }
 
   return (
@@ -47,7 +89,7 @@ export default function AddPlantForm({ onAddPlant, onCancel }: AddPlantFormProps
         fontSize: '1.25rem',
         fontWeight: 'bold'
       }}>
-        Add New Plant
+        {initialPlant ? 'Edit Plant' : 'Add New Plant'}
       </h2>
       
       <div style={{ marginBottom: '1rem' }}>
@@ -82,12 +124,63 @@ export default function AddPlantForm({ onAddPlant, onCancel }: AddPlantFormProps
           fontWeight: 'bold',
           fontSize: '0.95rem'
         }}>
-          Photo URL:
+          Plant Photo:
         </label>
+        
+        {/* Photo Preview */}
+        {photoPreview && (
+          <div style={{ marginBottom: '0.75rem' }}>
+            <img 
+              src={photoPreview} 
+              alt="Preview" 
+              style={{
+                width: '100%',
+                maxHeight: '200px',
+                objectFit: 'cover',
+                borderRadius: '6px',
+                border: '1px solid #ddd'
+              }}
+            />
+          </div>
+        )}
+
+        {/* File Upload */}
+        <div style={{ marginBottom: '0.75rem' }}>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            style={{
+              width: '100%',
+              padding: '0.75rem',
+              border: '1px solid #ddd',
+              borderRadius: '6px',
+              fontSize: '16px',
+              boxSizing: 'border-box',
+              cursor: 'pointer'
+            }}
+          />
+          <p style={{ 
+            margin: '0.25rem 0 0 0', 
+            fontSize: '0.85rem', 
+            color: '#666' 
+          }}>
+            Or enter a photo URL below
+          </p>
+        </div>
+
+        {/* URL Input (alternative) */}
         <input
           type="url"
-          value={photoUrl}
-          onChange={(e) => setPhotoUrl(e.target.value)}
+          value={photoUrl.startsWith('data:') ? '' : photoUrl}
+          onChange={(e) => {
+            const url = e.target.value
+            if (!url.startsWith('data:')) {
+              setPhotoUrl(url)
+              setPhotoPreview(url)
+            }
+          }}
+          placeholder="Or paste a photo URL here"
           style={{
             width: '100%',
             padding: '0.75rem',
@@ -96,7 +189,6 @@ export default function AddPlantForm({ onAddPlant, onCancel }: AddPlantFormProps
             fontSize: '16px',
             boxSizing: 'border-box'
           }}
-          required
         />
       </div>
 
@@ -161,7 +253,7 @@ export default function AddPlantForm({ onAddPlant, onCancel }: AddPlantFormProps
             minHeight: '48px'
           }}
         >
-          Add Plant
+          {initialPlant ? 'Save Changes' : 'Add Plant'}
         </button>
       </div>
     </form>
