@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { Search, Filter, Plus } from 'lucide-react'
 import PlantCard from '@/components/PlantCard'
 import AddPlantForm from '@/components/AddPlantForm'
 import { loadPlants, savePlants, type Plant } from '@/lib/plantStorage'
@@ -13,7 +14,9 @@ export default function Home() {
   const [editingPlant, setEditingPlant] = useState<Plant | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'name' | 'price' | 'date'>('name')
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
   const formRef = useRef<HTMLDivElement>(null)
+  const filterRef = useRef<HTMLDivElement>(null)
 
   // Load plants from localStorage on mount
   useEffect(() => {
@@ -105,20 +108,38 @@ export default function Home() {
   // Calculate total price (always use all plants, not filtered)
   const totalPrice = plants.reduce((sum, plant) => sum + plant.price, 0)
 
+  // Close filter dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
+        setIsFilterOpen(false)
+      }
+    }
+    if (isFilterOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isFilterOpen])
+
   return (
     <main style={{ 
       padding: '1rem', 
-      paddingBottom: '5rem',
+      paddingBottom: '5.5rem',
       maxWidth: '1200px', 
       margin: '0 auto', 
-      minHeight: '100vh'
+      minHeight: '100vh',
+      backgroundColor: '#d9d0de'
     }}>
       <h1 style={{ 
         marginBottom: '1.5rem', 
         fontSize: '1.75rem',
-        fontWeight: 'bold'
+        fontWeight: 'bold',
+        color: '#1b2021',
+        fontFamily: 'var(--font-lora), serif'
       }}>
-        My Plant Collection
+        My Plants Collection
       </h1>
       
       {isFormOpen && (
@@ -143,59 +164,125 @@ export default function Home() {
           <p style={{
             fontSize: '1.1rem',
             marginBottom: '0.5rem',
-            fontWeight: '500'
+            fontWeight: '500',
+            fontFamily: 'var(--font-pt-sans), sans-serif'
           }}>
             Your collection is empty
           </p>
           <p style={{
             fontSize: '0.95rem',
             margin: 0,
-            color: '#888'
+            color: '#888',
+            fontFamily: 'var(--font-pt-sans), sans-serif'
           }}>
             Tap the button below to add your first plant!
           </p>
         </div>
       ) : (
         <>
-          {/* Search Input */}
-          <div style={{ marginBottom: '1rem' }}>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search plants by name..."
-              style={{
-                width: '100%',
-                padding: '0.875rem',
-                border: '1px solid #ddd',
-                borderRadius: '8px',
-                fontSize: '16px',
-                boxSizing: 'border-box',
-                minHeight: '48px',
-                marginBottom: '0.75rem'
-              }}
-            />
+          {/* Search + Filter Row */}
+          <div style={{ 
+            marginBottom: '1rem',
+            display: 'flex',
+            gap: '0.75rem',
+            alignItems: 'center'
+          }}>
+            {/* Search Input with Icon */}
+            <div style={{
+              flex: 1,
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center'
+            }}>
+              <Search 
+                size={20} 
+                style={{
+                  position: 'absolute',
+                  left: '0.875rem',
+                  color: '#666',
+                  pointerEvents: 'none'
+                }}
+              />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search plants by name..."
+                style={{
+                  width: '100%',
+                  padding: '0.875rem 0.875rem 0.875rem 2.75rem',
+                  border: '1px solid #ddd',
+                  borderRadius: '16px',
+                  fontSize: '16px',
+                  boxSizing: 'border-box',
+                  minHeight: '48px',
+                  fontFamily: 'var(--font-pt-sans), sans-serif'
+                }}
+              />
+            </div>
             
-            {/* Sort Control */}
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as 'name' | 'price' | 'date')}
-              style={{
-                width: '100%',
-                padding: '0.875rem',
-                border: '1px solid #ddd',
-                borderRadius: '8px',
-                fontSize: '16px',
-                boxSizing: 'border-box',
-                minHeight: '48px',
-                backgroundColor: 'white',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="name">Sort by: Name (A-Z)</option>
-              <option value="price">Sort by: Price (High to Low)</option>
-              <option value="date">Sort by: Date Added (Newest First)</option>
-            </select>
+            {/* Filter Button */}
+            <div style={{ position: 'relative' }} ref={filterRef}>
+              <button
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                style={{
+                  width: '48px',
+                  height: '48px',
+                  padding: 0,
+                  border: '1px solid #ddd',
+                  borderRadius: '16px',
+                  backgroundColor: 'white',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: '48px',
+                  flexShrink: 0
+                }}
+                aria-label="Filter and sort"
+              >
+                <Filter size={20} color="#666" />
+              </button>
+              
+              {/* Filter Dropdown */}
+              {isFilterOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 0.5rem)',
+                  right: 0,
+                  backgroundColor: 'white',
+                  border: '1px solid #ddd',
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                  padding: '0.5rem',
+                  zIndex: 100,
+                  minWidth: '200px'
+                }}>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => {
+                      setSortBy(e.target.value as 'name' | 'price' | 'date')
+                      setIsFilterOpen(false)
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: '1px solid #ddd',
+                      borderRadius: '8px',
+                      fontSize: '15px',
+                      boxSizing: 'border-box',
+                      backgroundColor: 'white',
+                      cursor: 'pointer',
+                      fontFamily: 'var(--font-pt-sans), sans-serif'
+                    }}
+                  >
+                    <option value="name">Sort by: Name (A-Z)</option>
+                    <option value="price">Sort by: Price (High to Low)</option>
+                    <option value="date">Sort by: Date Added (Newest First)</option>
+                  </select>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Plant List or No Results */}
@@ -208,7 +295,8 @@ export default function Home() {
               <p style={{
                 fontSize: '1rem',
                 margin: 0,
-                fontWeight: '500'
+                fontWeight: '500',
+                fontFamily: 'var(--font-pt-sans), sans-serif'
               }}>
                 No plants found matching "{searchQuery}"
               </p>
@@ -233,53 +321,71 @@ export default function Home() {
         </>
       )}
 
-      {/* Sticky Total Price Bar */}
+      {/* Bottom Action Row */}
       <div style={{
         position: 'fixed',
         bottom: 0,
         left: 0,
         right: 0,
-        backgroundColor: '#4CAF50',
-        color: 'white',
         padding: '0.75rem 1rem',
-        textAlign: 'center',
-        fontSize: '1rem',
-        fontWeight: 'bold',
-        boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.1)',
+        display: 'flex',
+        gap: '0.75rem',
+        alignItems: 'center',
+        backgroundColor: 'transparent',
         zIndex: 999
       }}>
-        Total: ${totalPrice.toFixed(2)}
-      </div>
-
-      {/* Floating Action Button */}
-      {!isFormOpen && (
-        <button
-          onClick={handleOpenForm}
-          style={{
-            position: 'fixed',
-            bottom: '4.5rem',
-            right: '1.5rem',
-            padding: '0.875rem 1.5rem',
-            borderRadius: '28px',
-            backgroundColor: '#4CAF50',
-            color: 'white',
-            border: 'none',
+        {/* Total Value Block */}
+        <div style={{
+          flex: 1,
+          backgroundColor: 'white',
+          border: '1px solid #8d80ad',
+          borderRadius: '16px',
+          padding: '0.2rem 1rem',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '48px'
+        }}>
+          <span style={{
             fontSize: '1rem',
             fontWeight: 'bold',
-            cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            minHeight: '48px',
-            whiteSpace: 'nowrap'
-          }}
-          aria-label="Add plant"
-        >
-          Add plant
-        </button>
-      )}
+            color: '#1b2021',
+            fontFamily: 'var(--font-pt-sans), sans-serif'
+          }}>
+            Total: ${totalPrice.toFixed(2)}
+          </span>
+        </div>
+        
+        {/* Add Plant Button - only show when form is closed */}
+        {!isFormOpen && (
+          <button
+            onClick={handleOpenForm}
+            style={{
+              padding: '0.875rem 1.25rem',
+              borderRadius: '16px',
+              backgroundColor: '#4CAF50',
+              color: 'white',
+              border: 'none',
+              fontSize: '1.3rem',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              minHeight: '48px',
+              whiteSpace: 'nowrap',
+              fontFamily: 'var(--font-pt-sans), sans-serif'
+            }}
+            aria-label="Add plant"
+          >
+            <Plus size={24} />
+            Add plant
+          </button>
+        )}
+      </div>
     </main>
   )
 }

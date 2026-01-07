@@ -9,8 +9,8 @@ interface PlantCardProps {
 export default function PlantCard({ plant, onDelete, onEdit }: PlantCardProps) {
   return (
     <div style={{
-      border: '1px solid #ddd',
-      borderRadius: '8px',
+      border: '1px solid #8d80ad',
+      borderRadius: '16px',
       padding: '0',
       backgroundColor: '#fff',
       overflow: 'hidden',
@@ -45,30 +45,48 @@ export default function PlantCard({ plant, onDelete, onEdit }: PlantCardProps) {
       >
         ×
       </button>
-
-      <img 
-        src={plant.photoUrl} 
-        alt={plant.name}
+      {/* Plant photo */}
+      <div
         style={{
-          width: '100%',
-          height: '200px',
-          objectFit: 'cover',
-          display: 'block'
+        width: '100%',
+        maxHeight: '360px',
+        overflow: 'hidden',
+        borderRadius: '12px 0 0',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
         }}
-      />
+      >
+        <img
+          src={plant.photoUrl}
+          alt={plant.name}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: '50% 50%',
+            display: 'block'
+          }}
+        />
+      </div>
+
+      {/* Plant name, price, and edit button */}
       <div style={{ padding: '1rem' }}>
         <h3 style={{ 
           margin: '0 0 0.5rem 0',
           fontSize: '1.1rem',
-          fontWeight: 'bold'
+          fontWeight: 'bold',
+          color: '#1b2021',
+          fontFamily: 'var(--font-lora), serif'
         }}>
           {plant.name}
         </h3>
         <p style={{ 
           margin: '0 0 1rem 0', 
-          color: '#666',
+          color: '#1b2021',
           fontSize: '1rem',
-          fontWeight: '500'
+          fontWeight: '500',
+          fontFamily: 'var(--font-pt-sans), sans-serif'
         }}>
           ${plant.price.toFixed(2)}
         </p>
@@ -77,14 +95,15 @@ export default function PlantCard({ plant, onDelete, onEdit }: PlantCardProps) {
           style={{
             width: '100%',
             padding: '0.75rem',
-            backgroundColor: '#2196F3',
+            backgroundColor: '#8D80AD',
             color: 'white',
             border: 'none',
-            borderRadius: '6px',
+            borderRadius: '10px',
             cursor: 'pointer',
             fontSize: '1rem',
             fontWeight: 'bold',
-            minHeight: '48px'
+            minHeight: '48px',
+            fontFamily: 'var(--font-pt-sans), sans-serif'
           }}
         >
           Edit

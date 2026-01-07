@@ -78,8 +78,8 @@ export default function AddPlantForm({ onAddPlant, onCancel, initialPlant }: Add
   return (
     <form onSubmit={handleSubmit} style={{
       padding: '1rem',
-      border: '1px solid #ddd',
-      borderRadius: '8px',
+      border: '1px solid #8d80ad',
+      borderRadius: '16px',
       marginBottom: '1.5rem',
       backgroundColor: '#fff'
     }}>
@@ -87,7 +87,8 @@ export default function AddPlantForm({ onAddPlant, onCancel, initialPlant }: Add
         marginTop: 0, 
         marginBottom: '1rem',
         fontSize: '1.25rem',
-        fontWeight: 'bold'
+        fontWeight: 'bold',
+        fontFamily: 'var(--font-lora), serif'
       }}>
         {initialPlant ? 'Edit Plant' : 'Add New Plant'}
       </h2>
@@ -97,7 +98,8 @@ export default function AddPlantForm({ onAddPlant, onCancel, initialPlant }: Add
           display: 'block', 
           marginBottom: '0.5rem', 
           fontWeight: 'bold',
-          fontSize: '0.95rem'
+          fontSize: '0.95rem',
+          fontFamily: 'var(--font-pt-sans), sans-serif'
         }}>
           Plant Name:
         </label>
@@ -108,10 +110,11 @@ export default function AddPlantForm({ onAddPlant, onCancel, initialPlant }: Add
           style={{
             width: '100%',
             padding: '0.75rem',
-            border: '1px solid #ddd',
-            borderRadius: '6px',
+            border: '1px solid #8d80ad',
+            borderRadius: '12px',
             fontSize: '16px',
-            boxSizing: 'border-box'
+            boxSizing: 'border-box',
+            fontFamily: 'var(--font-pt-sans), sans-serif'
           }}
           required
         />
@@ -122,7 +125,8 @@ export default function AddPlantForm({ onAddPlant, onCancel, initialPlant }: Add
           display: 'block', 
           marginBottom: '0.5rem', 
           fontWeight: 'bold',
-          fontSize: '0.95rem'
+          fontSize: '0.95rem',
+          fontFamily: 'var(--font-pt-sans), sans-serif'
         }}>
           Plant Photo:
         </label>
@@ -137,8 +141,8 @@ export default function AddPlantForm({ onAddPlant, onCancel, initialPlant }: Add
                 width: '100%',
                 maxHeight: '200px',
                 objectFit: 'cover',
-                borderRadius: '6px',
-                border: '1px solid #ddd'
+                borderRadius: '12px',
+                border: '1px solid #8d80ad'
               }}
             />
           </div>
@@ -153,23 +157,26 @@ export default function AddPlantForm({ onAddPlant, onCancel, initialPlant }: Add
             style={{
               width: '100%',
               padding: '0.75rem',
-              border: '1px solid #ddd',
-              borderRadius: '6px',
+              border: '1px solid #8d80ad',
+              borderRadius: '12px',
               fontSize: '16px',
               boxSizing: 'border-box',
               cursor: 'pointer'
             }}
           />
-          <p style={{ 
+          
+          {/*<p style={{ 
             margin: '0.25rem 0 0 0', 
             fontSize: '0.85rem', 
-            color: '#666' 
+            color: '#666',
+            fontFamily: 'var(--font-pt-sans), sans-serif'
           }}>
             Or enter a photo URL below
-          </p>
+          </p>*/}
         </div>
 
-        {/* URL Input (alternative) */}
+{/*
+       // This is the "Photo URL" input field for users to paste an image URL as an alternative to uploading a file.
         <input
           type="url"
           value={photoUrl.startsWith('data:') ? '' : photoUrl}
@@ -184,12 +191,13 @@ export default function AddPlantForm({ onAddPlant, onCancel, initialPlant }: Add
           style={{
             width: '100%',
             padding: '0.75rem',
-            border: '1px solid #ddd',
-            borderRadius: '6px',
+            border: '1px solid #8d80ad',
+            borderRadius: '12px',
             fontSize: '16px',
-            boxSizing: 'border-box'
+            boxSizing: 'border-box',
+            fontFamily: 'var(--font-pt-sans), sans-serif'
           }}
-        />
+        />*/}
       </div>
 
       <div style={{ marginBottom: '1.25rem' }}>
@@ -197,7 +205,8 @@ export default function AddPlantForm({ onAddPlant, onCancel, initialPlant }: Add
           display: 'block', 
           marginBottom: '0.5rem', 
           fontWeight: 'bold',
-          fontSize: '0.95rem'
+          fontSize: '0.95rem',
+          fontFamily: 'var(--font-pt-sans), sans-serif'
         }}>
           Price:
         </label>
@@ -210,10 +219,11 @@ export default function AddPlantForm({ onAddPlant, onCancel, initialPlant }: Add
           style={{
             width: '100%',
             padding: '0.75rem',
-            border: '1px solid #ddd',
-            borderRadius: '6px',
+            border: '1px solid #8d80ad',
+            borderRadius: '12px',
             fontSize: '16px',
-            boxSizing: 'border-box'
+            boxSizing: 'border-box',
+            fontFamily: 'var(--font-pt-sans), sans-serif'
           }}
           required
         />
@@ -229,11 +239,12 @@ export default function AddPlantForm({ onAddPlant, onCancel, initialPlant }: Add
             backgroundColor: '#f5f5f5',
             color: '#333',
             border: '1px solid #ddd',
-            borderRadius: '6px',
+            borderRadius: '12px',
             fontSize: '1rem',
             cursor: 'pointer',
             fontWeight: 'bold',
-            minHeight: '48px'
+            minHeight: '48px',
+            fontFamily: 'var(--font-pt-sans), sans-serif'
           }}
         >
           Cancel
@@ -246,11 +257,12 @@ export default function AddPlantForm({ onAddPlant, onCancel, initialPlant }: Add
             backgroundColor: '#4CAF50',
             color: 'white',
             border: 'none',
-            borderRadius: '6px',
+            borderRadius: '12px',
             fontSize: '1.1rem',
             cursor: 'pointer',
             fontWeight: 'bold',
-            minHeight: '48px'
+            minHeight: '48px',
+            fontFamily: 'var(--font-pt-sans), sans-serif'
           }}
         >
           {initialPlant ? 'Save Changes' : 'Add Plant'}

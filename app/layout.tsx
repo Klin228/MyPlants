@@ -1,8 +1,32 @@
 import type { Metadata } from 'next'
+import { Lora, PT_Sans } from 'next/font/google'
+
+const lora = Lora({
+  subsets: ['latin'],
+  variable: '--font-lora',
+  display: 'swap',
+})
+
+const ptSans = PT_Sans({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-pt-sans',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: 'Plant Collection',
   description: 'Manage your personal plant collection',
+  manifest: '/manifest.json',
+  themeColor: '#8d80ad',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'MyPlants',
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
 }
 
 export default function RootLayout({
@@ -12,7 +36,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body style={{ margin: 0, padding: 0, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+      <body style={{ 
+        margin: 0, 
+        padding: 0, 
+        fontFamily: 'var(--font-pt-sans), system-ui, -apple-system, sans-serif' 
+      }} className={`${lora.variable} ${ptSans.variable}`}>
         {children}
       </body>
     </html>
