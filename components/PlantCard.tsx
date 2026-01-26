@@ -1,4 +1,5 @@
-import type { Plant } from '@/lib/plantStorage'
+import type { Plant } from '@/lib/models/plant'
+import PhotoGallery from './PhotoGallery'
 
 interface PlantCardProps {
   plant: Plant
@@ -18,7 +19,7 @@ export default function PlantCard({ plant, onDelete, onEdit }: PlantCardProps) {
       flexDirection: 'column',
       position: 'relative'
     }}>
-      {/* Delete button - small icon in top-right corner */}
+      {/* Delete button - small icon in top-left corner */}
       <button
         onClick={() => onDelete(plant.id)}
         style={{
@@ -45,32 +46,11 @@ export default function PlantCard({ plant, onDelete, onEdit }: PlantCardProps) {
       >
         ×
       </button>
-      {/* Plant photo */}
-      <div
-        style={{
-        width: '100%',
-        maxHeight: '360px',
-        overflow: 'hidden',
-        borderRadius: '12px 0 0',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-        }}
-      >
-        <img
-          src={plant.photoUrl}
-          alt={plant.name}
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            objectPosition: '50% 50%',
-            display: 'block'
-          }}
-        />
-      </div>
 
-      {/* Plant name, price, and edit button */}
+      {/* Photo Gallery */}
+      <PhotoGallery photos={plant.photos || []} alt={plant.name} />
+
+      {/* Plant name, price, notes, and edit button */}
       <div style={{ padding: '1rem' }}>
         <h3 style={{ 
           margin: '0 0 0.5rem 0',
@@ -82,7 +62,7 @@ export default function PlantCard({ plant, onDelete, onEdit }: PlantCardProps) {
           {plant.name}
         </h3>
         <p style={{ 
-          margin: '0 0 1rem 0', 
+          margin: '0 0 0.75rem 0', 
           color: '#1b2021',
           fontSize: '1rem',
           fontWeight: '500',
@@ -90,6 +70,29 @@ export default function PlantCard({ plant, onDelete, onEdit }: PlantCardProps) {
         }}>
           ${plant.price.toFixed(2)}
         </p>
+        
+        {/* Notes - only show if they exist */}
+        {plant.notes && plant.notes.trim() && (
+          <div style={{
+            marginBottom: '0.75rem',
+            padding: '0.75rem',
+            backgroundColor: '#f5f5f5',
+            borderRadius: '8px',
+            border: '1px solid #e0e0e0'
+          }}>
+            <p style={{
+              margin: 0,
+              fontSize: '0.9rem',
+              color: '#555',
+              fontFamily: 'var(--font-pt-sans), sans-serif',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word'
+            }}>
+              {plant.notes}
+            </p>
+          </div>
+        )}
+
         <button
           onClick={() => onEdit(plant)}
           style={{
@@ -112,4 +115,3 @@ export default function PlantCard({ plant, onDelete, onEdit }: PlantCardProps) {
     </div>
   )
 }
-

@@ -1,89 +1,87 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { Search, Filter, Plus } from 'lucide-react'
 import PlantCard from '@/components/PlantCard'
-import AddPlantForm from '@/components/AddPlantForm'
-import { loadPlants, savePlants, type Plant } from '@/lib/plantStorage'
+import { plantsRepository } from '@/lib/repositories/plantsRepository'
+import { initializeDatabase } from '@/lib/repositories/migration'
+import type { Plant } from '@/lib/models/plant'
 
 export default function Home() {
+  const router = useRouter()
   // Plants state - initialize as empty, will load from localStorage
   const [plants, setPlants] = useState<Plant[]>([])
   const [hasLoadedFromStorage, setHasLoadedFromStorage] = useState(false)
-  const [isFormOpen, setIsFormOpen] = useState(false)
-  const [editingPlant, setEditingPlant] = useState<Plant | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'name' | 'price' | 'date'>('name')
   const [isFilterOpen, setIsFilterOpen] = useState(false)
-  const formRef = useRef<HTMLDivElement>(null)
   const filterRef = useRef<HTMLDivElement>(null)
 
-  // Load plants from localStorage on mount
+  // Initialize database and load plants on mount and when page becomes visible
   useEffect(() => {
-    const loadedPlants = loadPlants()
-    setPlants(loadedPlants)
-    setHasLoadedFromStorage(true)
+    const loadPlantsData = async () => {
+      try {
+        // Initialize database and run migration if needed
+        await initializeDatabase()
+        
+        // Load plants from repository
+        const loadedPlants = await plantsRepository.getAll()
+        setPlants(loadedPlants)
+        setHasLoadedFromStorage(true)
+      } catch (error) {
+        console.error('Error loading plants:', error)
+        setPlants([])
+        setHasLoadedFromStorage(true)
+      }
+    }
+
+    loadPlantsData()
+
+    // Reload plants when page becomes visible (e.g., navigating back from add/edit)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadPlantsData()
+      }
+    }
+
+    // Also listen for focus event (for better mobile support)
+    const handleFocus = () => {
+      loadPlantsData()
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
+    }
   }, [])
 
-  // Save plants to localStorage whenever plants state changes (but only after initial load)
-  useEffect(() => {
-    if (hasLoadedFromStorage) {
-      savePlants(plants)
-    }
-  }, [plants, hasLoadedFromStorage])
-
-  // Handle adding a new plant
-  const handleAddPlant = (newPlantData: Omit<Plant, 'id'>) => {
-    const plantId = Date.now().toString()
-    const newPlant: Plant = {
-      id: plantId,
-      ...newPlantData
-    }
-    const updatedPlants = [...plants, newPlant]
-    setPlants(updatedPlants)
-    setIsFormOpen(false)
-  }
-
-  // Handle updating an existing plant
-  const handleUpdatePlant = (updatedPlantData: Omit<Plant, 'id'>) => {
-    if (!editingPlant) return
-    
-    const updatedPlant: Plant = {
-      id: editingPlant.id,
-      ...updatedPlantData
-    }
-    const updatedPlants = plants.map(plant => 
-      plant.id === editingPlant.id ? updatedPlant : plant
-    )
-    setPlants(updatedPlants)
-    setEditingPlant(null)
-    setIsFormOpen(false)
-  }
-
   // Handle deleting a plant
-  const handleDeletePlant = (plantIdToDelete: string) => {
-    const remainingPlants = plants.filter(plant => plant.id !== plantIdToDelete)
-    setPlants(remainingPlants)
+  const handleDeletePlant = async (plantIdToDelete: string) => {
+    try {
+      // Delete plant (repository handles photo deletion automatically)
+      await plantsRepository.delete(plantIdToDelete)
+      
+      // Update local state
+      const remainingPlants = plants.filter(plant => plant.id !== plantIdToDelete)
+      setPlants(remainingPlants)
+    } catch (error) {
+      console.error('Error deleting plant:', error)
+      alert('Error deleting plant. Please try again.')
+    }
   }
 
-  // Handle opening the form and scrolling to it
-  const handleOpenForm = () => {
-    setEditingPlant(null)
-    setIsFormOpen(true)
-    // Scroll to form after it renders
-    setTimeout(() => {
-      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 0)
+  // Handle opening the add plant page
+  const handleOpenAddForm = () => {
+    router.push('/plant/new')
   }
 
-  // Handle opening the form in edit mode
+  // Handle opening the edit plant page
   const handleEditPlant = (plant: Plant) => {
-    setEditingPlant(plant)
-    setIsFormOpen(true)
-    // Scroll to form after it renders
-    setTimeout(() => {
-      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 0)
+    router.push(`/plant/${plant.id}/edit`)
   }
 
   // Filter plants based on search query
@@ -139,21 +137,8 @@ export default function Home() {
         color: '#1b2021',
         fontFamily: 'var(--font-lora), serif'
       }}>
-        My Plants Collection
+        MyPlants
       </h1>
-      
-      {isFormOpen && (
-        <div ref={formRef}>
-          <AddPlantForm 
-            onAddPlant={editingPlant ? handleUpdatePlant : handleAddPlant}
-            onCancel={() => {
-              setIsFormOpen(false)
-              setEditingPlant(null)
-            }}
-            initialPlant={editingPlant}
-          />
-        </div>
-      )}
       
       {plants.length === 0 ? (
         <div style={{
@@ -324,7 +309,7 @@ export default function Home() {
       {/* Bottom Action Row */}
       <div style={{
         position: 'fixed',
-        bottom: 0,
+        bottom: '1.5rem',
         left: 0,
         right: 0,
         padding: '0.75rem 1rem',
@@ -357,34 +342,32 @@ export default function Home() {
           </span>
         </div>
         
-        {/* Add Plant Button - only show when form is closed */}
-        {!isFormOpen && (
-          <button
-            onClick={handleOpenForm}
-            style={{
-              padding: '0.875rem 1.25rem',
-              borderRadius: '16px',
-              backgroundColor: '#4CAF50',
-              color: 'white',
-              border: 'none',
-              fontSize: '1.3rem',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-              minHeight: '48px',
-              whiteSpace: 'nowrap',
-              fontFamily: 'var(--font-pt-sans), sans-serif'
-            }}
-            aria-label="Add plant"
-          >
-            <Plus size={24} />
-            Add plant
-          </button>
-        )}
+        {/* Add Plant Button */}
+        <button
+          onClick={handleOpenAddForm}
+          style={{
+            padding: '0.875rem 1.25rem',
+            borderRadius: '16px',
+            backgroundColor: '#2AB917',
+            color: 'white',
+            border: 'none',
+            fontSize: '1.3rem',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
+            minHeight: '48px',
+            whiteSpace: 'nowrap',
+            fontFamily: 'var(--font-pt-sans), sans-serif'
+          }}
+          aria-label="Add plant"
+        >
+          <Plus size={24} />
+          Add plant
+        </button>
       </div>
     </main>
   )

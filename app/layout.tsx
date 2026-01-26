@@ -1,5 +1,6 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Lora, PT_Sans } from 'next/font/google'
+import ServiceWorkerRegister from './ServiceWorkerRegister'
 
 const lora = Lora({
   subsets: ['latin'],
@@ -18,7 +19,6 @@ export const metadata: Metadata = {
   title: 'Plant Collection',
   description: 'Manage your personal plant collection',
   manifest: '/manifest.json',
-  themeColor: '#8d80ad',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -27,6 +27,10 @@ export const metadata: Metadata = {
   other: {
     'mobile-web-app-capable': 'yes',
   },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#8d80ad',
 }
 
 export default function RootLayout({
@@ -41,6 +45,8 @@ export default function RootLayout({
         padding: 0, 
         fontFamily: 'var(--font-pt-sans), system-ui, -apple-system, sans-serif' 
       }} className={`${lora.variable} ${ptSans.variable}`}>
+        <ServiceWorkerRegister />
+        
         {children}
       </body>
     </html>
