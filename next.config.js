@@ -43,37 +43,12 @@ const withPWA = require('next-pwa')({
       },
     },
     {
-      // All GET requests to app routes (for App Router navigation)
-      urlPattern: ({ url, request }) => {
-        // Match app routes (not static files, not _next)
-        return request.method === 'GET' && 
-               !url.pathname.startsWith('/_next') &&
-               !url.pathname.startsWith('/api') &&
-               !url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/i)
-      },
-      handler: 'NetworkFirst',
+      urlPattern: ({ url }) => url.pathname === '/offline',
+      handler: 'CacheFirst',
       options: {
-        cacheName: 'app-routes-cache',
-        expiration: {
-          maxEntries: 50,
-          maxAgeSeconds: 24 * 60 * 60,
-        },
-        networkTimeoutSeconds: 3,
+        cacheName: 'offline-page',
       },
-    },
-    {
-      // Root page - NetworkFirst strategy
-      urlPattern: ({ url }) => url.pathname === '/',
-      handler: 'NetworkFirst',
-      options: {
-        cacheName: 'pages-cache',
-        expiration: {
-          maxEntries: 50,
-          maxAgeSeconds: 24 * 60 * 60,
-        },
-        networkTimeoutSeconds: 3,
-      },
-    },
+    },    
     {
       // Next.js static assets - CacheFirst strategy for performance
       urlPattern: /\/_next\/static\/.*/i,
