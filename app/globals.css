@@ -1,0 +1,795 @@
+/*
+ * Дизайн-токены и утилитарные классы MyPlants.
+ *
+ * Единственное место, где живут конкретные значения цвета, радиусов, отступов
+ * и типографики. В компонентах их быть не должно: инлайновый стиль там
+ * оставлен только для того, что меняется покадрово во время жеста.
+ *
+ * Имена токенов семантические, а не по внешнему виду — иначе в тёмной теме
+ * пришлось бы заводить --color-white со значением чёрного.
+ */
+
+:root {
+  /* Цвет */
+  --color-bg: #d9d0de;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f5f5f5;
+  --color-surface-empty: #f0f0f0;
+
+  --color-accent: #8d80ad;
+  --color-accent-hover: #7a6d9a;
+  --color-primary: #4caf50;
+
+  --color-text: #1b2021;
+  --color-text-muted: #666666;
+  --color-text-subtle: #888888;
+  --color-danger: #d32f2f;
+
+  --color-border: #dddddd;
+  --color-border-soft: #e0e0e0;
+
+  /* Поверх фотографии */
+  --color-scrim: rgba(0, 0, 0, 0.6);
+  --color-scrim-strong: rgba(0, 0, 0, 0.7);
+  --color-glass: rgba(255, 255, 255, 0.15);
+  --color-on-photo: #ffffff;
+  --color-on-photo-muted: rgba(255, 255, 255, 0.6);
+  --color-dot-active: #ffffff;
+  --color-dot-inactive: rgba(255, 255, 255, 0.5);
+
+  /* Радиусы */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+  --radius-round: 50%;
+
+  /* Отступы */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 0.75rem;
+  --space-lg: 1rem;
+  --space-xl: 1.5rem;
+  --space-2xl: 2rem;
+  --space-3xl: 3rem;
+
+  /* Типографика */
+  --font-display: var(--font-lora), serif;
+  --font-body: var(--font-pt-sans), system-ui, -apple-system, sans-serif;
+
+  --text-xs: 0.85rem;
+  --text-sm: 0.9rem;
+  --text-md: 0.95rem;
+  --text-base: 1rem;
+  --text-lg: 1.1rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.75rem;
+
+  /*
+   * Не произвольный размер: Safari на iOS автоматически зумит страницу при
+   * фокусе на поле с текстом меньше 16px. Уменьшать нельзя.
+   */
+  --text-input: 16px;
+
+  /* Тени */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-toast: 0 4px 12px rgba(0, 0, 0, 0.3);
+
+  /* Минимальная площадь касания */
+  --tap-target: 48px;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-body);
+  /*
+   * Фон нужен и здесь, а не только на контейнерах экранов: иначе область
+   * резинового скролла на iOS остаётся белой и мигает при оттягивании.
+   */
+  background-color: var(--color-bg);
+}
+
+/* ---------- Экраны ---------- */
+
+/* Главная: лента карточек */
+.page {
+  padding: var(--space-lg);
+  padding-bottom: 5.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background-color: var(--color-bg);
+}
+
+/* Экраны добавления и редактирования */
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: var(--color-bg);
+}
+
+.screen-header {
+  position: sticky;
+  top: 0;
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-border-soft);
+  padding: var(--space-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  z-index: 100;
+}
+
+.screen-title {
+  margin: 0;
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: bold;
+  color: var(--color-text);
+}
+
+.screen-body {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.screen-centered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background-color: var(--color-bg);
+}
+
+.page-title {
+  margin-bottom: var(--space-xl);
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: bold;
+  color: var(--color-text);
+}
+
+/* ---------- Кнопки ---------- */
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-weight: bold;
+}
+
+/* Основное действие: добавить, сохранить */
+.btn--primary {
+  flex: 1;
+  padding: var(--space-lg);
+  min-height: var(--tap-target);
+  border-radius: var(--radius-md);
+  background-color: var(--color-primary);
+  color: var(--color-surface);
+  font-size: var(--text-lg);
+}
+
+/* Кнопка добавления на главной */
+.btn--add {
+  gap: var(--space-sm);
+  padding: 0.875rem 1.25rem;
+  min-height: var(--tap-target);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-primary);
+  color: var(--color-surface);
+  font-size: 1.3rem;
+  white-space: nowrap;
+  box-shadow: var(--shadow-md);
+}
+
+/* Второстепенное действие: отмена */
+.btn--secondary {
+  flex: 1;
+  padding: var(--space-lg);
+  min-height: var(--tap-target);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  font-size: var(--text-base);
+}
+
+/* Переход к редактированию */
+.btn--accent {
+  width: 100%;
+  padding: var(--space-md);
+  min-height: var(--tap-target);
+  border-radius: var(--radius-md);
+  background-color: var(--color-accent);
+  color: var(--color-surface);
+  font-size: var(--text-base);
+}
+
+.btn--link {
+  padding: 0.875rem var(--space-xl);
+  border-radius: var(--radius-md);
+  background-color: var(--color-accent);
+  color: var(--color-surface);
+  font-size: var(--text-base);
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
+  transition: background-color 0.2s;
+}
+
+.btn--link:hover {
+  background-color: var(--color-accent-hover);
+}
+
+/* Круглая кнопка с иконкой в шапке экрана */
+.btn--icon {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-round);
+  background-color: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+/* Квадратная кнопка с иконкой рядом с поиском */
+.btn--icon-square {
+  width: var(--tap-target);
+  min-width: var(--tap-target);
+  height: var(--tap-target);
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+/* Круглая кнопка поверх фотографии */
+.btn--scrim {
+  position: absolute;
+  padding: 0;
+  border-radius: var(--radius-round);
+  background-color: var(--color-scrim);
+  color: var(--color-on-photo);
+}
+
+/* Удаление растения в карточке: крестик набран текстом */
+.btn--scrim-lg {
+  width: 36px;
+  height: 36px;
+  font-size: var(--text-xl);
+  line-height: 1;
+  z-index: 10;
+}
+
+/* Удаление превью в форме: внутри иконка, свой размер шрифта ей не нужен */
+.btn--scrim-sm {
+  width: 28px;
+  height: 28px;
+  background-color: var(--color-scrim-strong);
+}
+
+/* Стеклянная кнопка в полноэкранном просмотре */
+.btn--glass {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: var(--radius-round);
+  background-color: var(--color-glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--color-on-photo);
+  font-size: 1.4rem;
+  font-weight: normal;
+  line-height: 1;
+  z-index: 10000;
+  transition: opacity 0.2s;
+}
+
+/* ---------- Карточка растения ---------- */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+}
+
+.card-body {
+  padding: var(--space-lg);
+}
+
+.card-title {
+  margin: 0 0 var(--space-sm) 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: bold;
+  color: var(--color-text);
+}
+
+.card-price {
+  margin: 0 0 var(--space-md) 0;
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.card-notes {
+  margin-bottom: var(--space-md);
+  padding: var(--space-md);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface-muted);
+}
+
+.card-notes p {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ---------- Форма ---------- */
+
+.field {
+  margin-bottom: var(--space-lg);
+}
+
+.field-label {
+  display: block;
+  margin-bottom: var(--space-sm);
+  font-size: var(--text-md);
+  font-weight: bold;
+}
+
+.field-required {
+  color: var(--color-danger);
+}
+
+.field-input {
+  width: 100%;
+  padding: var(--space-md);
+  box-sizing: border-box;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-size: var(--text-input);
+}
+
+.field-input--file {
+  cursor: pointer;
+}
+
+.field-input--area {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.field-hint {
+  margin: var(--space-sm) 0 0 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.form-fields {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-lg);
+  padding-bottom: var(--space-2xl);
+}
+
+.form-actions {
+  display: flex;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border-top: 1px solid var(--color-border-soft);
+  background-color: var(--color-surface);
+}
+
+/* Сетка превью загруженных фотографий */
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.photo-thumb {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md);
+}
+
+.photo-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ---------- Поиск и сортировка ---------- */
+
+.toolbar {
+  display: flex;
+  gap: var(--space-md);
+  align-items: center;
+  margin-bottom: var(--space-lg);
+}
+
+.search {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 0.875rem;
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  min-height: var(--tap-target);
+  padding: 0.875rem 0.875rem 0.875rem 2.75rem;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  font-family: var(--font-body);
+  font-size: var(--text-input);
+}
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + var(--space-sm));
+  right: 0;
+  min-width: 200px;
+  padding: var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-xl);
+  z-index: 100;
+}
+
+.select {
+  width: 100%;
+  padding: var(--space-md);
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  font-family: var(--font-body);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+/* ---------- Нижняя панель ---------- */
+
+.bottom-bar {
+  position: fixed;
+  bottom: var(--space-xl);
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background-color: transparent;
+  z-index: 999;
+}
+
+.total-badge {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap-target);
+  padding: 0.2rem var(--space-lg);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.total-badge span {
+  font-size: var(--text-base);
+  font-weight: bold;
+  color: var(--color-text);
+}
+
+/* ---------- Пустые состояния ---------- */
+
+.empty-state {
+  text-align: center;
+  padding: var(--space-3xl) var(--space-lg);
+  color: var(--color-text-muted);
+}
+
+.empty-state-title {
+  margin-bottom: var(--space-sm);
+  font-size: var(--text-lg);
+  font-weight: 500;
+}
+
+.empty-state-hint {
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--color-text-subtle);
+}
+
+.plant-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-xl);
+}
+
+.no-results {
+  text-align: center;
+  padding: var(--space-2xl) var(--space-lg);
+  color: var(--color-text-muted);
+}
+
+.no-results p {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 500;
+}
+
+.loading-text {
+  color: var(--color-text-muted);
+}
+
+/* ---------- Галерея в карточке ---------- */
+
+/*
+ * Скруглены только верхние углы: снизу галерея упирается в тело карточки.
+ * Форма записи `12px 0 0` из исходного кода сохранена как есть.
+ */
+.gallery {
+  width: 100%;
+  max-height: 360px;
+  overflow: hidden;
+  border-radius: var(--radius-md) 0 0;
+  position: relative;
+}
+
+.gallery-empty {
+  width: 100%;
+  height: 360px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md) 0 0;
+  background-color: var(--color-surface-empty);
+  color: var(--color-text-muted);
+}
+
+.gallery-track {
+  display: flex;
+  transition: transform 0.3s ease-out;
+}
+
+.gallery-slide {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.gallery-slide img {
+  width: 100%;
+  height: 100%;
+  max-height: 360px;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  cursor: pointer;
+}
+
+.gallery-dots {
+  position: absolute;
+  bottom: var(--space-md);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: var(--space-sm);
+  z-index: 10;
+}
+
+.gallery-dot {
+  height: 8px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-xs);
+  background-color: var(--color-dot-inactive);
+  cursor: pointer;
+  transition: width 0.2s ease-out, background-color 0.2s ease-out;
+}
+
+.gallery-dot--active {
+  background-color: var(--color-dot-active);
+}
+
+/* ---------- Полноэкранный просмотр ---------- */
+
+.viewer {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  z-index: 9999;
+  /* touch-action намеренно оставлен инлайном рядом с обработчиками касаний */
+}
+
+.viewer-close {
+  top: max(var(--space-lg), env(safe-area-inset-top));
+  right: var(--space-lg);
+}
+
+.viewer-track {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  will-change: transform;
+}
+
+.viewer-slide {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.viewer-slide img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.viewer-missing {
+  color: var(--color-on-photo-muted);
+  font-size: var(--text-sm);
+}
+
+.viewer-counter {
+  position: absolute;
+  bottom: max(var(--space-xl), env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0.875rem;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--color-on-photo);
+  font-size: var(--text-xs);
+  z-index: 10000;
+  transition: opacity 0.2s;
+}
+
+/* ---------- Всплывающее сообщение ---------- */
+
+.toast {
+  position: fixed;
+  bottom: 6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 90%;
+  padding: 0.875rem 1.25rem;
+  border-radius: var(--radius-md);
+  background-color: var(--color-text);
+  color: var(--color-surface);
+  font-size: var(--text-md);
+  box-shadow: var(--shadow-toast);
+  z-index: 10000;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* ---------- Страница «нет сети» ---------- */
+
+.offline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--space-2xl);
+  background-color: var(--color-bg);
+}
+
+.offline-card {
+  max-width: 500px;
+  padding: var(--space-2xl);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+
+.offline-icon {
+  font-size: 4rem;
+  margin-bottom: var(--space-lg);
+}
+
+.offline-title {
+  margin-bottom: var(--space-lg);
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: bold;
+  color: var(--color-text);
+}
+
+.offline-title--lg {
+  font-size: var(--text-3xl);
+}
+
+.offline-text {
+  margin-bottom: var(--space-xl);
+  color: var(--color-text-muted);
+}
+
+/* Разреженный интервал нужен только длинному абзацу */
+.offline-text--lead {
+  line-height: 1.6;
+}
+
+.offline-footnote {
+  margin: var(--space-xl) 0 0 0;
+  font-size: 0.875rem;
+  color: var(--color-text-subtle);
+}

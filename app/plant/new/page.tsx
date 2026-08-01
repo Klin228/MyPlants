@@ -65,61 +65,17 @@ export default function NewPlantPage() {
   }
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100vh',
-      backgroundColor: '#d9d0de'
-    }}>
+    <div className="screen">
       {/* Fixed Header */}
-      <header style={{
-        position: 'sticky',
-        top: 0,
-        backgroundColor: 'white',
-        borderBottom: '1px solid #e0e0e0',
-        padding: '1rem',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '1rem',
-        zIndex: 100
-      }}>
-        <button
-          onClick={handleCancel}
-          style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
-            border: '1px solid #ddd',
-            backgroundColor: 'white',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 0
-          }}
-          aria-label="Go back"
-        >
-          <ArrowLeft size={20} color="#333" />
+      <header className="screen-header">
+        <button onClick={handleCancel} className="btn btn--icon" aria-label="Go back">
+          <ArrowLeft size={20} color="currentColor" />
         </button>
-        <h1 style={{
-          margin: 0,
-          fontSize: '1.25rem',
-          fontWeight: 'bold',
-          color: '#1b2021',
-          fontFamily: 'var(--font-lora), serif',
-          flex: 1
-        }}>
-          Add plant
-        </h1>
+        <h1 className="screen-title">Add plant</h1>
       </header>
 
       {/* Scrollable Form */}
-      <div style={{
-        flex: 1,
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column'
-      }}>
+      <div className="screen-body">
         <AddPlantForm
           onAddPlant={handleAddPlant}
           onCancel={handleCancel}

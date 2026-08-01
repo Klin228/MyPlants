@@ -116,144 +116,50 @@ export default function Home() {
   }, [isFilterOpen])
 
   return (
-    <main style={{ 
-      padding: '1rem', 
-      paddingBottom: '5.5rem',
-      maxWidth: '1200px', 
-      margin: '0 auto', 
-      minHeight: '100vh',
-      backgroundColor: '#d9d0de'
-    }}>
-      <h1 style={{ 
-        marginBottom: '1.5rem', 
-        fontSize: '1.75rem',
-        fontWeight: 'bold',
-        color: '#1b2021',
-        fontFamily: 'var(--font-lora), serif'
-      }}>
-        MyPlants
-      </h1>
-      
+    <main className="page">
+      <h1 className="page-title">MyPlants</h1>
+
       {plants.length === 0 ? (
-        <div style={{
-          textAlign: 'center',
-          padding: '3rem 1rem',
-          color: '#666'
-        }}>
-          <p style={{
-            fontSize: '1.1rem',
-            marginBottom: '0.5rem',
-            fontWeight: '500',
-            fontFamily: 'var(--font-pt-sans), sans-serif'
-          }}>
-            Your collection is empty
-          </p>
-          <p style={{
-            fontSize: '0.95rem',
-            margin: 0,
-            color: '#888',
-            fontFamily: 'var(--font-pt-sans), sans-serif'
-          }}>
-            Tap the button below to add your first plant!
-          </p>
+        <div className="empty-state">
+          <p className="empty-state-title">Your collection is empty</p>
+          <p className="empty-state-hint">Tap the button below to add your first plant!</p>
         </div>
       ) : (
         <>
           {/* Search + Filter Row */}
-          <div style={{ 
-            marginBottom: '1rem',
-            display: 'flex',
-            gap: '0.75rem',
-            alignItems: 'center'
-          }}>
+          <div className="toolbar">
             {/* Search Input with Icon */}
-            <div style={{
-              flex: 1,
-              position: 'relative',
-              display: 'flex',
-              alignItems: 'center'
-            }}>
-              <Search 
-                size={20} 
-                style={{
-                  position: 'absolute',
-                  left: '0.875rem',
-                  color: '#666',
-                  pointerEvents: 'none'
-                }}
-              />
+            <div className="search">
+              <Search size={20} className="search-icon" color="currentColor" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search plants by name..."
-                style={{
-                  width: '100%',
-                  padding: '0.875rem 0.875rem 0.875rem 2.75rem',
-                  border: '1px solid #ddd',
-                  borderRadius: '16px',
-                  fontSize: '16px',
-                  boxSizing: 'border-box',
-                  minHeight: '48px',
-                  fontFamily: 'var(--font-pt-sans), sans-serif'
-                }}
+                className="search-input"
               />
             </div>
-            
+
             {/* Filter Button */}
             <div style={{ position: 'relative' }} ref={filterRef}>
               <button
                 onClick={() => setIsFilterOpen(!isFilterOpen)}
-                style={{
-                  width: '48px',
-                  height: '48px',
-                  padding: 0,
-                  border: '1px solid #ddd',
-                  borderRadius: '16px',
-                  backgroundColor: 'white',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minWidth: '48px',
-                  flexShrink: 0
-                }}
+                className="btn btn--icon-square"
                 aria-label="Filter and sort"
               >
-                <Filter size={20} color="#666" />
+                <Filter size={20} color="currentColor" />
               </button>
-              
+
               {/* Filter Dropdown */}
               {isFilterOpen && (
-                <div style={{
-                  position: 'absolute',
-                  top: 'calc(100% + 0.5rem)',
-                  right: 0,
-                  backgroundColor: 'white',
-                  border: '1px solid #ddd',
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                  padding: '0.5rem',
-                  zIndex: 100,
-                  minWidth: '200px'
-                }}>
+                <div className="dropdown">
                   <select
                     value={sortBy}
                     onChange={(e) => {
                       setSortBy(e.target.value as 'name' | 'price' | 'date')
                       setIsFilterOpen(false)
                     }}
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem',
-                      border: '1px solid #ddd',
-                      borderRadius: '8px',
-                      fontSize: '15px',
-                      boxSizing: 'border-box',
-                      backgroundColor: 'white',
-                      cursor: 'pointer',
-                      fontFamily: 'var(--font-pt-sans), sans-serif'
-                    }}
+                    className="select"
                   >
                     <option value="name">Sort by: Name (A-Z)</option>
                     <option value="price">Sort by: Price (High to Low)</option>
@@ -266,27 +172,11 @@ export default function Home() {
 
           {/* Plant List or No Results */}
           {sortedPlants.length === 0 ? (
-            <div style={{
-              textAlign: 'center',
-              padding: '2rem 1rem',
-              color: '#666'
-            }}>
-              <p style={{
-                fontSize: '1rem',
-                margin: 0,
-                fontWeight: '500',
-                fontFamily: 'var(--font-pt-sans), sans-serif'
-              }}>
-                No plants found matching "{searchQuery}"
-              </p>
+            <div className="no-results">
+              <p>No plants found matching "{searchQuery}"</p>
             </div>
           ) : (
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column',
-              gap: '1rem', 
-              marginBottom: '1.5rem' 
-            }}>
+            <div className="plant-list">
               {sortedPlants.map((plant) => (
                 <PlantCard 
                   key={plant.id} 
@@ -301,64 +191,14 @@ export default function Home() {
       )}
 
       {/* Bottom Action Row */}
-      <div style={{
-        position: 'fixed',
-        bottom: '1.5rem',
-        left: 0,
-        right: 0,
-        padding: '0.75rem 1rem',
-        display: 'flex',
-        gap: '0.75rem',
-        alignItems: 'center',
-        backgroundColor: 'transparent',
-        zIndex: 999
-      }}>
+      <div className="bottom-bar">
         {/* Total Value Block */}
-        <div style={{
-          flex: 1,
-          backgroundColor: 'white',
-          border: '1px solid #8d80ad',
-          borderRadius: '16px',
-          padding: '0.2rem 1rem',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '48px'
-        }}>
-          <span style={{
-            fontSize: '1rem',
-            fontWeight: 'bold',
-            color: '#1b2021',
-            fontFamily: 'var(--font-pt-sans), sans-serif'
-          }}>
-            Total: ${totalPrice.toFixed(2)}
-          </span>
+        <div className="total-badge">
+          <span>Total: ${totalPrice.toFixed(2)}</span>
         </div>
-        
+
         {/* Add Plant Button */}
-        <button
-          onClick={handleOpenAddForm}
-          style={{
-            padding: '0.875rem 1.25rem',
-            borderRadius: '16px',
-            backgroundColor: '#2AB917',
-            color: 'white',
-            border: 'none',
-            fontSize: '1.3rem',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.5rem',
-            minHeight: '48px',
-            whiteSpace: 'nowrap',
-            fontFamily: 'var(--font-pt-sans), sans-serif'
-          }}
-          aria-label="Add plant"
-        >
+        <button onClick={handleOpenAddForm} className="btn btn--add" aria-label="Add plant">
           <Plus size={24} />
           Add plant
         </button>

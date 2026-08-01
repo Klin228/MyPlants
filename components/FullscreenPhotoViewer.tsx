@@ -288,19 +288,8 @@ export default function FullscreenPhotoViewer({
   return (
     <div
       ref={containerRef}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: `rgba(0, 0, 0, ${backdropOpacity})`,
-        zIndex: 9999,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        touchAction: 'none',
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
-        overflow: 'hidden'
-      }}
+      className="viewer"
+      style={{ backgroundColor: `rgba(0, 0, 0, ${backdropOpacity})`, touchAction: 'none' }}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
@@ -309,29 +298,8 @@ export default function FullscreenPhotoViewer({
     >
       <button
         onClick={() => close()}
-        style={{
-          position: 'absolute',
-          top: 'max(1rem, env(safe-area-inset-top))',
-          right: '1rem',
-          width: '44px',
-          height: '44px',
-          borderRadius: '50%',
-          backgroundColor: 'rgba(255, 255, 255, 0.16)',
-          backdropFilter: 'blur(10px)',
-          WebkitBackdropFilter: 'blur(10px)',
-          color: 'white',
-          border: 'none',
-          cursor: 'pointer',
-          fontSize: '1.4rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10000,
-          lineHeight: 1,
-          padding: 0,
-          opacity: isInteracting ? 0 : 1,
-          transition: 'opacity 0.2s'
-        }}
+        className="btn btn--glass viewer-close"
+        style={{ opacity: isInteracting ? 0 : 1 }}
         aria-label="Закрыть"
       >
         ×
@@ -339,28 +307,14 @@ export default function FullscreenPhotoViewer({
 
       {/* Лента фотографий */}
       <div
+        className="viewer-track"
         style={{
-          display: 'flex',
-          width: '100%',
-          height: '100%',
           transform: `translate3d(calc(${-activeIndex * 100}% + ${drag.x}px), ${drag.y}px, 0) scale(${1 - closeProgress * 0.12})`,
-          transition: isInteracting ? 'none' : 'transform 0.28s cubic-bezier(0.22, 0.61, 0.36, 1)',
-          willChange: 'transform'
+          transition: isInteracting ? 'none' : 'transform 0.28s cubic-bezier(0.22, 0.61, 0.36, 1)'
         }}
       >
         {photoUrls.map((url, index) => (
-          <div
-            key={index}
-            style={{
-              flex: '0 0 100%',
-              width: '100%',
-              height: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              overflow: 'hidden'
-            }}
-          >
+          <div key={index} className="viewer-slide">
             {url ? (
               <img
                 ref={index === activeIndex ? imageRef : undefined}
@@ -370,55 +324,22 @@ export default function FullscreenPhotoViewer({
                 draggable={false}
                 decoding="async"
                 style={{
-                  maxWidth: '100%',
-                  maxHeight: '100%',
-                  objectFit: 'contain',
-                  display: 'block',
                   transform: index === activeIndex
                     ? `scale(${scale}) translate(${pan.x / scale}px, ${pan.y / scale}px)`
                     : undefined,
                   transition: mode === 'pinch' || mode === 'pan' ? 'none' : 'transform 0.25s ease-out',
-                  cursor: scale > 1 ? 'grab' : 'zoom-in',
-                  userSelect: 'none',
-                  WebkitUserSelect: 'none'
+                  cursor: scale > 1 ? 'grab' : 'zoom-in'
                 }}
               />
             ) : (
-              <span style={{
-                color: 'rgba(255,255,255,0.6)',
-                fontSize: '0.9rem',
-                fontFamily: 'var(--font-pt-sans), sans-serif'
-              }}>
-                Фото недоступно
-              </span>
+              <span className="viewer-missing">Фото недоступно</span>
             )}
           </div>
         ))}
       </div>
 
       {photoUrls.length > 1 && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 'max(1.5rem, env(safe-area-inset-bottom))',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.5rem 0.875rem',
-            borderRadius: '999px',
-            backgroundColor: 'rgba(255, 255, 255, 0.14)',
-            backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)',
-            color: 'white',
-            fontSize: '0.85rem',
-            fontFamily: 'var(--font-pt-sans), sans-serif',
-            zIndex: 10000,
-            opacity: isInteracting ? 0 : 1,
-            transition: 'opacity 0.2s'
-          }}
-        >
+        <div className="viewer-counter" style={{ opacity: isInteracting ? 0 : 1 }}>
           {activeIndex + 1} / {photoUrls.length}
         </div>
       )}

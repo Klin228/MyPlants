@@ -90,19 +90,7 @@ export default function PhotoGallery({ photos, alt }: PhotoGalleryProps) {
 
   if (photos.length === 0 || photoUrls.length === 0) {
     return (
-      <div
-        style={{
-          width: '100%',
-          height: '360px',
-          backgroundColor: '#f0f0f0',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderRadius: '12px 0 0',
-          color: '#666',
-          fontFamily: 'var(--font-pt-sans), sans-serif'
-        }}
-      >
+      <div className="gallery-empty">
         {photos.length > 0 && photoUrls.length === 0 ? 'Loading photos...' : 'No photo'}
       </div>
     )
@@ -111,52 +99,30 @@ export default function PhotoGallery({ photos, alt }: PhotoGalleryProps) {
   return (
     <div
       ref={containerRef}
-      style={{
-        width: '100%',
-        maxHeight: '360px',
-        overflow: 'hidden',
-        borderRadius: '12px 0 0',
-        position: 'relative',
-        touchAction: 'pan-x pan-y'
-      }}
+      className="gallery"
+      style={{ touchAction: 'pan-x pan-y' }}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
       {/* Photo container with sliding animation */}
       <div
+        className="gallery-track"
         style={{
-          display: 'flex',
           width: `${photoUrls.length * 100}%`,
-          transform: `translateX(-${activeIndex * (100 / photoUrls.length)}%)`,
-          transition: 'transform 0.3s ease-out'
+          transform: `translateX(-${activeIndex * (100 / photoUrls.length)}%)`
         }}
       >
         {photoUrls.map((photoUrl, index) => (
           <div
             key={index}
-            style={{
-              width: `${100 / photoUrls.length}%`,
-              flexShrink: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              overflow: 'hidden'
-            }}
+            className="gallery-slide"
+            style={{ width: `${100 / photoUrls.length}%` }}
           >
             <img
               src={photoUrl}
               alt={`${alt} - Photo ${index + 1}`}
               onClick={() => setIsFullscreenOpen(true)}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                objectPosition: 'center',
-                display: 'block',
-                maxHeight: '360px',
-                cursor: 'pointer'
-              }}
             />
           </div>
         ))}
@@ -164,31 +130,13 @@ export default function PhotoGallery({ photos, alt }: PhotoGalleryProps) {
 
       {/* Pagination dots - only show if multiple photos */}
       {photoUrls.length > 1 && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '0.75rem',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            display: 'flex',
-            gap: '0.5rem',
-            zIndex: 10
-          }}
-        >
+        <div className="gallery-dots">
           {photoUrls.map((_, index) => (
             <button
               key={index}
               onClick={() => setActiveIndex(index)}
-              style={{
-                width: activeIndex === index ? '24px' : '8px',
-                height: '8px',
-                borderRadius: '4px',
-                border: 'none',
-                backgroundColor: activeIndex === index ? 'white' : 'rgba(255, 255, 255, 0.5)',
-                cursor: 'pointer',
-                padding: 0,
-                transition: 'width 0.2s ease-out, background-color 0.2s ease-out'
-              }}
+              className={`gallery-dot${activeIndex === index ? ' gallery-dot--active' : ''}`}
+              style={{ width: activeIndex === index ? '24px' : '8px' }}
               aria-label={`Go to photo ${index + 1}`}
             />
           ))}

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Lora, PT_Sans } from 'next/font/google'
 import ServiceWorkerRegister from './ServiceWorkerRegister'
+import './globals.css'
 
 const lora = Lora({
   subsets: ['latin'],
@@ -30,6 +31,8 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
+  // Единственный цвет вне globals.css: значение уезжает в <meta> на сборке,
+  // CSS-переменная там не вычислится. Держать в паре с --color-accent.
   themeColor: '#8d80ad',
 }
 
@@ -39,12 +42,12 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body style={{ 
-        margin: 0, 
-        padding: 0, 
-        fontFamily: 'var(--font-pt-sans), system-ui, -apple-system, sans-serif' 
-      }} className={`${lora.variable} ${ptSans.variable}`}>
+    // Переменные шрифтов вешаются на <html>, а не на <body>: --font-body в
+    // globals.css объявлен в :root и подставляет --font-pt-sans там же. На
+    // <body> они были бы объявлены уровнем ниже, подстановка не нашла бы их,
+    // и вся типографика молча съезжала бы на Times.
+    <html lang="en" className={`${lora.variable} ${ptSans.variable}`}>
+      <body>
         <ServiceWorkerRegister />
         
         {children}

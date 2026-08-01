@@ -248,103 +248,38 @@ export default function AddPlantForm({ onAddPlant, onCancel, initialPlant }: Add
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100%'
-    }}>
+    <form onSubmit={handleSubmit} className="form">
       {/* Form Fields - Scrollable */}
-      <div style={{
-        flex: 1,
-        overflowY: 'auto',
-        padding: '1rem',
-        paddingBottom: '2rem'
-      }}>
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ 
-            display: 'block', 
-            marginBottom: '0.5rem', 
-            fontWeight: 'bold',
-            fontSize: '0.95rem',
-            fontFamily: 'var(--font-pt-sans), sans-serif'
-          }}>
-            Plant Name: <span style={{ color: '#d32f2f' }}>*</span>
+      <div className="form-fields">
+        <div className="field">
+          <label className="field-label">
+            Plant Name: <span className="field-required">*</span>
           </label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              border: '1px solid #8d80ad',
-              borderRadius: '12px',
-              fontSize: '16px',
-              boxSizing: 'border-box',
-              fontFamily: 'var(--font-pt-sans), sans-serif'
-            }}
+            className="field-input"
             required
           />
         </div>
 
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ 
-            display: 'block', 
-            marginBottom: '0.5rem', 
-            fontWeight: 'bold',
-            fontSize: '0.95rem',
-            fontFamily: 'var(--font-pt-sans), sans-serif'
-          }}>
-            Plant Photos: <span style={{ color: '#d32f2f' }}>*</span>
+        <div className="field">
+          <label className="field-label">
+            Plant Photos: <span className="field-required">*</span>
           </label>
-          
+
           {/* Photo Grid */}
           {photoPreviews.length > 0 && (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
-              gap: '0.75rem',
-              marginBottom: '0.75rem'
-            }}>
+            <div className="photo-grid">
               {photoPreviews.map((photoPreview, index) => (
-                <div
-                  key={index}
-                  style={{
-                    position: 'relative',
-                    aspectRatio: '1',
-                    borderRadius: '12px',
-                    overflow: 'hidden',
-                    border: '1px solid #8d80ad'
-                  }}
-                >
-                  <img
-                    src={photoPreview.preview}
-                    alt={`Preview ${index + 1}`}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover'
-                    }}
-                  />
+                <div key={index} className="photo-thumb">
+                  <img src={photoPreview.preview} alt={`Preview ${index + 1}`} />
                   <button
                     type="button"
                     onClick={() => handleRemovePhoto(index)}
-                    style={{
-                      position: 'absolute',
-                      top: '0.25rem',
-                      right: '0.25rem',
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '50%',
-                      backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                      color: 'white',
-                      border: 'none',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: 0
-                    }}
+                    className="btn btn--scrim btn--scrim-sm"
+                    style={{ top: 'var(--space-xs)', right: 'var(--space-xs)' }}
                     aria-label={`Remove photo ${index + 1}`}
                   >
                     <X size={16} />
@@ -361,38 +296,18 @@ export default function AddPlantForm({ onAddPlant, onCancel, initialPlant }: Add
             accept="image/*"
             multiple
             onChange={handleFileChange}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              border: '1px solid #8d80ad',
-              borderRadius: '12px',
-              fontSize: '16px',
-              boxSizing: 'border-box',
-              cursor: 'pointer',
-              fontFamily: 'var(--font-pt-sans), sans-serif'
-            }}
+            className="field-input field-input--file"
           />
-          <p style={{ 
-            margin: '0.5rem 0 0 0', 
-            fontSize: '0.85rem', 
-            color: '#666',
-            fontFamily: 'var(--font-pt-sans), sans-serif'
-          }}>
+          <p className="field-hint">
             {photoPreviews.length === 0 
               ? 'Upload at least one photo' 
               : `You can add more photos (${photoPreviews.length} ${photoPreviews.length === 1 ? 'photo' : 'photos'} added)`}
           </p>
         </div>
 
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ 
-            display: 'block', 
-            marginBottom: '0.5rem', 
-            fontWeight: 'bold',
-            fontSize: '0.95rem',
-            fontFamily: 'var(--font-pt-sans), sans-serif'
-          }}>
-            Price: <span style={{ color: '#d32f2f' }}>*</span>
+        <div className="field">
+          <label className="field-label">
+            Price: <span className="field-required">*</span>
           </label>
           <input
             type="number"
@@ -400,92 +315,29 @@ export default function AddPlantForm({ onAddPlant, onCancel, initialPlant }: Add
             min="0"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              border: '1px solid #8d80ad',
-              borderRadius: '12px',
-              fontSize: '16px',
-              boxSizing: 'border-box',
-              fontFamily: 'var(--font-pt-sans), sans-serif'
-            }}
+            className="field-input"
             required
           />
         </div>
 
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ 
-            display: 'block', 
-            marginBottom: '0.5rem', 
-            fontWeight: 'bold',
-            fontSize: '0.95rem',
-            fontFamily: 'var(--font-pt-sans), sans-serif'
-          }}>
-            Notes (optional):
-          </label>
+        <div className="field">
+          <label className="field-label">Notes (optional):</label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={4}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              border: '1px solid #8d80ad',
-              borderRadius: '12px',
-              fontSize: '16px',
-              boxSizing: 'border-box',
-              fontFamily: 'var(--font-pt-sans), sans-serif',
-              resize: 'vertical',
-              minHeight: '100px'
-            }}
+            className="field-input field-input--area"
             placeholder="Add any notes about this plant..."
           />
         </div>
       </div>
 
       {/* Fixed Action Buttons */}
-      <div style={{
-        padding: '1rem',
-        borderTop: '1px solid #e0e0e0',
-        backgroundColor: 'white',
-        display: 'flex',
-        gap: '0.75rem'
-      }}>
-        <button
-          type="button"
-          onClick={onCancel}
-          style={{
-            flex: 1,
-            padding: '1rem',
-            backgroundColor: '#f5f5f5',
-            color: '#333',
-            border: '1px solid #ddd',
-            borderRadius: '12px',
-            fontSize: '1rem',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            minHeight: '48px',
-            fontFamily: 'var(--font-pt-sans), sans-serif'
-          }}
-        >
+      <div className="form-actions">
+        <button type="button" onClick={onCancel} className="btn btn--secondary">
           Cancel
         </button>
-        <button
-          type="submit"
-          style={{
-            flex: 1,
-            padding: '1rem',
-            backgroundColor: '#4CAF50',
-            color: 'white',
-            border: 'none',
-            borderRadius: '12px',
-            fontSize: '1.1rem',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            minHeight: '48px',
-            fontFamily: 'var(--font-pt-sans), sans-serif'
-          }}
-        >
+        <button type="submit" className="btn btn--primary">
           {initialPlant ? 'Save Changes' : 'Add Plant'}
         </button>
       </div>
