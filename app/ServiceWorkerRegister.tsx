@@ -16,16 +16,16 @@ export default function ServiceWorkerRegister() {
       return
     }
 
-    if ((window as any).workbox) {
+    if (window.workbox !== undefined) {
       console.log('[PWA] Registering service worker via Workbox')
 
-      ;(window as any).workbox.register()
+      window.workbox.register()
 
-      ;(window as any).workbox.addEventListener('activated', () => {
+      window.workbox.addEventListener('activated', () => {
         console.log('[PWA] Service Worker activated')
       })
 
-      ;(window as any).workbox.addEventListener('waiting', () => {
+      window.workbox.addEventListener('waiting', () => {
         console.log('[PWA] New Service Worker waiting')
       })
     } else {

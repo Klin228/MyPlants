@@ -15,6 +15,14 @@
 # production
 /build
 
+# pwa — генерируется при сборке, имена с хешем
+/public/sw.js
+/public/sw.js.map
+/public/swe-worker-*.js
+/public/workbox-*.js
+/public/workbox-*.js.map
+/public/fallback-*.js
+
 # misc
 .DS_Store
 *.pem
