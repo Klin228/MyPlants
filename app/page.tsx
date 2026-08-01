@@ -12,7 +12,6 @@ export default function Home() {
   const router = useRouter()
   // Plants state - initialize as empty, will load from localStorage
   const [plants, setPlants] = useState<Plant[]>([])
-  const [hasLoadedFromStorage, setHasLoadedFromStorage] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'name' | 'price' | 'date'>('name')
   const [isFilterOpen, setIsFilterOpen] = useState(false)
@@ -24,38 +23,33 @@ export default function Home() {
       try {
         // Initialize database and run migration if needed
         await initializeDatabase()
-        
+
         // Load plants from repository
         const loadedPlants = await plantsRepository.getAll()
         setPlants(loadedPlants)
-        setHasLoadedFromStorage(true)
       } catch (error) {
         console.error('Error loading plants:', error)
         setPlants([])
-        setHasLoadedFromStorage(true)
       }
     }
 
     loadPlantsData()
 
-    // Reload plants when page becomes visible (e.g., navigating back from add/edit)
+    // Reload plants when the tab comes back to the foreground.
+    // Возврат с add/edit сюда не относится: это клиентская навигация, компонент
+    // размонтируется и на обратном пути перечитывает данные при монтировании.
+    // Только visibilitychange: focus срабатывает на том же возврате на вкладку
+    // и давал второе чтение из IndexedDB.
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         loadPlantsData()
       }
     }
 
-    // Also listen for focus event (for better mobile support)
-    const handleFocus = () => {
-      loadPlantsData()
-    }
-
     document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('focus', handleFocus)
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('focus', handleFocus)
     }
   }, [])
 
