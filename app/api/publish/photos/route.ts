@@ -47,12 +47,33 @@ function publicBlobBaseUrl(): string | null {
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
+  // Проверяем до вызова пакета. Без токена он отвечает `400` с текстом про
+  // «configure the BLOB_READ_WRITE_TOKEN» — формально верным, но выглядящим
+  // как ошибка пользователя, хотя это несобранная серверная настройка.
+  //
+  // Отдельная ловушка: Vercel не заводит эту переменную в проекте сам,
+  // рассчитывая, что серверный код авторизуется через OIDC. Если OIDC в
+  // развёртывании не работает, чтение коллекций продолжает работать (ему
+  // хватает BLOB_STORE_ID), а публикация молча ломается — то есть заметить
+  // это чтением страницы невозможно.
+  const token = process.env.BLOB_READ_WRITE_TOKEN
+  if (!token) {
+    console.error('BLOB_READ_WRITE_TOKEN не задан: публикация фотографий невозможна')
+    return NextResponse.json(
+      { error: 'Publishing is not configured on the server. Nothing you did wrong — try later.' },
+      { status: 503 }
+    )
+  }
+
   const body = (await request.json()) as HandleUploadBody
 
   try {
     const result = await handleUpload({
       body,
       request,
+      // Токен передаётся явно, а не подхватывается из окружения: так путь
+      // авторизации один и тот же локально и на проде, без ветки через OIDC.
+      token,
       onBeforeGenerateToken: async (pathname: string) => {
         if (!isPublicPhotoPath(pathname)) {
           // Клиент считает путь из хеша содержимого. Всё остальное — либо

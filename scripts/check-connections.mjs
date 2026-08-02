@@ -155,7 +155,88 @@ async function checkBlob() {
   return { ok: true, detail: `токен принят, ${contents}` }
 }
 
+/**
+ * Проверка развёрнутого приложения, а не локального окружения.
+ *
+ * Появилась после того, как публикация на проде отказала при полностью
+ * рабочем чтении: `BLOB_STORE_ID` там был, а `BLOB_READ_WRITE_TOKEN` — нет.
+ * Страница коллекции и картинка превью открывались как ни в чём не бывало,
+ * поэтому проверкой ссылок это не ловилось.
+ *
+ * Проверяются ровно два пути, ходящие в хранилища: чтение коллекции из базы и
+ * выдача токена, которой нужен блоб.
+ */
+async function checkDeployment(baseUrl) {
+  const base = baseUrl.replace(/\/$/, '')
+  console.log(`Проверяю развёрнутое приложение: ${base}\n`)
+
+  let allOk = true
+
+  // Несуществующая коллекция: 404 значит, что база ответила; пятисотка — что
+  // до неё не достучались.
+  try {
+    const response = await fetch(`${base}/c/probe-nonexistent-collection`, {
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    })
+    const ok = response.status === 404
+    console.log(`${ok ? '✓' : '✗'} Чтение коллекций: HTTP ${response.status}`)
+    if (!ok) allOk = false
+  } catch (error) {
+    console.log(`✗ Чтение коллекций: ${error.message}`)
+    allOk = false
+  }
+
+  // Единственное место, где нужен BLOB_READ_WRITE_TOKEN. Путь заведомо
+  // допустимый, чтобы отказ означал настройку, а не проверку пути.
+  try {
+    const pathname = `c/${'0'.repeat(64)}.jpg`
+    const response = await fetch(`${base}/api/publish/photos`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      body: JSON.stringify({
+        type: 'blob.generate-client-token',
+        payload: {
+          pathname,
+          callbackUrl: `${base}/api/publish/photos`,
+          clientPayload: null,
+          multipart: false,
+        },
+      }),
+    })
+
+    const text = await response.text()
+
+    if (response.ok && text.includes('clientToken')) {
+      console.log('✓ Публикация фотографий: токен выдаётся')
+    } else {
+      console.log(`✗ Публикация фотографий: HTTP ${response.status} — ${text.slice(0, 160)}`)
+      if (response.status === 503) {
+        console.log('  Задайте BLOB_READ_WRITE_TOKEN в переменных окружения проекта на Vercel')
+        console.log('  и передеплойте: переменные подхватываются только новой сборкой.')
+      }
+      allOk = false
+    }
+  } catch (error) {
+    console.log(`✗ Публикация фотографий: ${error.message}`)
+    allOk = false
+  }
+
+  if (!allOk) process.exit(1)
+  console.log('\nРазвёрнутое приложение в порядке.')
+}
+
 async function main() {
+  const urlIndex = process.argv.indexOf('--url')
+  if (urlIndex !== -1) {
+    const baseUrl = process.argv[urlIndex + 1]
+    if (!baseUrl) {
+      console.error('Укажите адрес: npm run check:connections -- --url https://example.com')
+      process.exit(1)
+    }
+    return checkDeployment(baseUrl)
+  }
+
   const loaded = await loadEnv()
   if (!loaded) {
     console.error(`Нет файла ${ENV_FILE}.`)
