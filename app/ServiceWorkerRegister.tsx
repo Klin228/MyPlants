@@ -1,13 +1,24 @@
 'use client'
 
 import { useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 
 export default function ServiceWorkerRegister() {
+  const pathname = usePathname()
+
   useEffect(() => {
     if (
       typeof window === 'undefined' ||
       process.env.NODE_ENV !== 'production'
     ) {
+      return
+    }
+
+    // На чужую коллекцию заходят по ссылке один раз. Ставить такому посетителю
+    // наше приложение офлайн — и лишняя работа при первой отрисовке, и просто
+    // неожиданно: он открыл страницу посмотреть на растения, а не установить
+    // PWA. Маршрут /c/ обслуживается сервером и в офлайн-режиме не нуждается.
+    if (pathname?.startsWith('/c/')) {
       return
     }
 
@@ -31,7 +42,10 @@ export default function ServiceWorkerRegister() {
     } else {
       console.warn('[PWA] Workbox is not available')
     }
-  }, [])
+    // Путь в зависимостях: приложение одностраничное, и переход с чужой
+    // коллекции на главную должен привести к регистрации. Повторный вызов
+    // register() безвреден — браузер видит тот же адрес и ничего не делает.
+  }, [pathname])
 
   return null
 }

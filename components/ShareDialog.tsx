@@ -28,6 +28,14 @@ const OPTION_LABELS: [keyof PublishOptions, string][] = [
   ['includeSource', 'Where each plant came from'],
 ]
 
+/**
+ * Индексация стоит отдельно от трёх флагов выше и подписана иначе.
+ *
+ * Те решают, какие поля уедут; этот — кто сможет найти уже уехавшее. Ставить
+ * его в общий список значило бы делать вид, что это такая же галочка.
+ */
+const INDEXING_LABEL = 'Let search engines find this page'
+
 export default function ShareDialog({ plants, onClose }: ShareDialogProps) {
   const [title, setTitle] = useState('')
   const [options, setOptions] = useState<PublishOptions>(DEFAULT_PUBLISH_OPTIONS)
@@ -173,6 +181,22 @@ export default function ShareDialog({ plants, onClose }: ShareDialogProps) {
               Nothing above leaves your device unless you check it. Species and acquisition date are
               always published.
             </p>
+
+            <fieldset className="share-options" disabled={busy}>
+              <legend className="field-label">Discoverability:</legend>
+              <label className="share-option">
+                <input
+                  type="checkbox"
+                  checked={options.allowIndexing}
+                  onChange={() => toggle('allowIndexing')}
+                />
+                {INDEXING_LABEL}
+              </label>
+              <p className="sheet-note">
+                Off by default: the link is private because nobody can guess it. Turn this on only
+                if you want the collection to show up in search results.
+              </p>
+            </fieldset>
 
             {withoutPhotos > 0 && (
               <p className="sheet-note">

@@ -58,6 +58,10 @@ export function validateSnapshot(value: unknown): ValidationResult {
     return fail('Collection total is not a valid number')
   }
 
+  if (value.allowIndexing !== undefined && typeof value.allowIndexing !== 'boolean') {
+    return fail('allowIndexing must be a boolean')
+  }
+
   if (!Array.isArray(value.plants)) return fail('Plant list is missing')
   if (value.plants.length === 0) return fail('Snapshot contains no plants')
   if (value.plants.length > LIMITS.plants) {

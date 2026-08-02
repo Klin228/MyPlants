@@ -85,6 +85,9 @@ export function buildSnapshotDraft(
     plants: draftPlants,
   }
 
+  // Единственный флаг, который едет значением, а не отсутствием полей
+  if (publishOptions.allowIndexing) draft.allowIndexing = true
+
   const trimmedTitle = title?.trim()
   if (trimmedTitle) draft.title = trimmedTitle
 

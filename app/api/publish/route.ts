@@ -89,12 +89,15 @@ async function createCollection(snapshot: CollectionSnapshot) {
   const revokeToken = newRevokeToken()
 
   await db`
-    insert into collections (id, snapshot_version, title, total_price, revoke_token_hash)
+    insert into collections (
+      id, snapshot_version, title, total_price, allow_indexing, revoke_token_hash
+    )
     values (
       ${id},
       ${snapshot.version},
       ${snapshot.title ?? null},
       ${snapshot.totalPrice ?? null},
+      ${snapshot.allowIndexing === true},
       ${await sha256Hex(revokeToken)}
     )
   `
@@ -127,6 +130,7 @@ async function updateCollection(id: string, revokeToken: string, snapshot: Colle
     set snapshot_version = ${snapshot.version},
         title = ${snapshot.title ?? null},
         total_price = ${snapshot.totalPrice ?? null},
+        allow_indexing = ${snapshot.allowIndexing === true},
         updated_at = now()
     where id = ${id}
   `

@@ -138,6 +138,7 @@ export async function uploadDraftPhotos(
     version: draft.version,
     ...(draft.title === undefined ? {} : { title: draft.title }),
     ...(draft.totalPrice === undefined ? {} : { totalPrice: draft.totalPrice }),
+    ...(draft.allowIndexing ? { allowIndexing: true } : {}),
     plants: draft.plants.map((plant): SnapshotPlant => {
       const { photoKeys, ...rest } = plant
       const photos: SnapshotPhoto[] = photoKeys.map((key) => {

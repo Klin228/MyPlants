@@ -51,12 +51,23 @@ export interface PublishOptions {
    * человека, который на это не подписывался.
    */
   includeSource: boolean
+
+  /**
+   * Пускать ли поисковики на страницу коллекции.
+   *
+   * Стоит особняком от трёх флагов выше: те решают, какие поля уедут, этот —
+   * кто сможет найти уже уехавшее. Ссылка секретна тем, что её нельзя
+   * угадать, и человек, отправивший её двоим друзьям, соглашался именно на
+   * это, а не на выдачу в поиске по своему имени.
+   */
+  allowIndexing: boolean
 }
 
 export const DEFAULT_PUBLISH_OPTIONS: PublishOptions = {
   includePrices: false,
   includeNotes: false,
   includeSource: false,
+  allowIndexing: false,
 }
 
 /**
@@ -119,6 +130,16 @@ export interface CollectionSnapshot {
   title?: string
   /** Только при `includePrices`: сумма по всем растениям снимка. */
   totalPrice?: number
+  /**
+   * Разрешил ли владелец поисковикам индексировать страницу.
+   *
+   * Единственный из флагов публикации, который доезжает до сервера значением:
+   * остальные три выражаются тем, каких полей в снимке нет. Поле
+   * необязательное, поэтому `SNAPSHOT_VERSION` не поднимается — версия
+   * существует для несовместимых изменений, а добавление необязательного поля
+   * читатели переживают.
+   */
+  allowIndexing?: boolean
   plants: SnapshotPlant[]
 }
 
@@ -142,6 +163,7 @@ export interface CollectionSnapshotDraft {
   version: number
   title?: string
   totalPrice?: number
+  allowIndexing?: boolean
   options: PublishOptions
   plants: SnapshotDraftPlant[]
 }

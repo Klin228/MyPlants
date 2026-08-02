@@ -932,11 +932,161 @@ body {
   color: var(--color-danger);
 }
 
-/* ---------- Публичная страница коллекции ---------- */
 
-.public-photo {
-  display: block;
+/* ---------- Витрина: публичная страница коллекции ---------- */
+
+/*
+ * Классы витрины намеренно отдельны от .page и .card внутреннего экрана.
+ * У них разные задачи: там инструмент владельца, здесь страница, которую
+ * незнакомый человек открывает по ссылке. Общее только токены.
+ */
+
+.showcase {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--space-xl) var(--space-lg) var(--space-3xl);
+}
+
+.showcase-header {
+  margin-bottom: var(--space-2xl);
+  text-align: center;
+}
+
+.showcase-title {
+  margin: 0 0 var(--space-sm) 0;
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: bold;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.showcase-summary {
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--color-text-muted);
+}
+
+/* Стоимость коллекции — то, ради чего продукт вообще существует */
+.showcase-total {
+  margin: var(--space-md) 0 0 0;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: bold;
+  color: var(--color-accent);
+}
+
+/*
+ * Одна колонка на телефоне, две на планшете, три на широком экране —
+ * без медиазапросов: минимальная ширина колонки задаёт переносы сама.
+ *
+ * 320 пикселей, а не 280: при 280 на ширине 1440 получается четыре колонки,
+ * и карточки для витрины мельчают. Считается это так — контейнер 1200 минус
+ * отступы, поделить на минимум плюс промежуток.
+ */
+.showcase-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--space-lg);
+}
+
+.showcase-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+/*
+ * Лента фотографий без единой строчки JavaScript.
+ *
+ * Горизонтальная прокрутка со «щелчком» на каждой карточке: палец на телефоне
+ * и колесо на десктопе работают сами. Клиентская галерея с обработчиками
+ * здесь означала бы, что при отключённом JavaScript видна ровно одна
+ * фотография, — а страница обязана работать и без него.
+ */
+.showcase-strip {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  /* Вертикаль отдаём странице, горизонталь — ленте */
+  touch-action: pan-y pinch-zoom;
+  scrollbar-width: none;
+}
+
+.showcase-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.showcase-photo {
+  flex: 0 0 100%;
   width: 100%;
   height: auto;
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  display: block;
+  scroll-snap-align: start;
+  background-color: var(--color-surface-empty);
+}
+
+.showcase-body {
+  padding: var(--space-lg);
+}
+
+.showcase-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: bold;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.showcase-species {
+  margin: var(--space-xs) 0 0 0;
+  font-size: var(--text-sm);
+  font-style: italic;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.showcase-price {
+  margin: var(--space-md) 0 0 0;
+  font-size: var(--text-lg);
+  font-weight: bold;
+  color: var(--color-text);
+}
+
+.showcase-meta {
+  margin: var(--space-sm) 0 0 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-subtle);
+}
+
+.showcase-notes {
+  margin: var(--space-md) 0 0 0;
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-border-soft);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.showcase-footer {
+  margin-top: var(--space-3xl);
+  text-align: center;
+  font-size: var(--text-xs);
+}
+
+.showcase-footer a {
+  color: var(--color-text-subtle);
+  text-decoration: none;
+}
+
+.showcase-footer a:hover {
+  color: var(--color-accent);
+  text-decoration: underline;
 }
