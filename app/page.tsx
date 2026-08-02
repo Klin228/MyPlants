@@ -8,22 +8,6 @@ import { plantsRepository } from '@/lib/repositories/plantsRepository'
 import { initializeDatabase } from '@/lib/repositories/migration'
 import type { Plant } from '@/lib/models/plant'
 
-/**
- * Возраст записи по её id — временная мера до появления createdAt (тикет B2).
- *
- * У старых записей id это временная метка, у новых — UUID, из которого возраст
- * не достать. Такие считаем самыми новыми: они и правда добавлены позже всех
- * timestamp-записей. Между собой они дают ноль, и стабильная сортировка
- * оставляет их в порядке чтения из базы.
- *
- * Важно не возвращать отсюда NaN: компаратор, вернувший NaN, делает результат
- * Array.prototype.sort неопределённым.
- */
-function ageKey(id: string): number {
-  const timestamp = Number(id)
-  return Number.isFinite(timestamp) ? timestamp : Number.MAX_SAFE_INTEGER
-}
-
 export default function Home() {
   const router = useRouter()
   // Plants state - initialize as empty, will load from localStorage
@@ -107,7 +91,9 @@ export default function Home() {
       case 'price':
         return b.price - a.price // High to low
       case 'date':
-        return ageKey(b.id) - ageKey(a.id) // Newest first
+        // Даты в ISO с одним часовым поясом и фиксированной длиной, поэтому
+        // обычного сравнения строк достаточно, разбирать в Date не нужно.
+        return (b.createdAt ?? '').localeCompare(a.createdAt ?? '') // Newest first
       default:
         return 0
     }

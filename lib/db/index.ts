@@ -6,7 +6,7 @@
  * a singleton pattern to ensure only one database connection exists.
  */
 
-import { DB_NAME, DB_VERSION, createSchema } from './schema'
+import { DB_NAME, DB_VERSION, createSchema, upgradeData } from './schema'
 
 /**
  * Database connection state
@@ -71,9 +71,17 @@ export function initDB(): Promise<IDBDatabase> {
     }
 
     request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result
+      const db = request.result
       try {
         createSchema(db)
+
+        // Сторы уже существуют, дальше — перенос самих данных. Транзакция
+        // берётся у запроса: своя здесь не откроется, versionchange
+        // блокирует всё остальное до конца обновления.
+        const transaction = request.transaction
+        if (transaction) {
+          upgradeData(transaction, event.oldVersion)
+        }
       } catch (error) {
         console.error('Error creating database schema:', error)
         reject(error)

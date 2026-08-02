@@ -14,7 +14,7 @@
 import { initDB } from '../db'
 import { STORES } from '../db/schema'
 import { newId } from '../ids'
-import type { Plant } from '../models/plant'
+import type { NewPlant, Plant } from '../models/plant'
 import { photosRepository } from './photosRepository'
 
 /**
@@ -68,18 +68,21 @@ export async function getById(id: string): Promise<Plant | undefined> {
 
 /**
  * Create a new plant
- * 
- * @param data - Plant data (without id, which will be generated)
+ *
+ * @param data - Plant data (id and timestamps are generated here)
  * @returns Promise that resolves to the created plant with generated ID
  */
-export async function create(data: Omit<Plant, 'id'>): Promise<Plant> {
+export async function create(data: NewPlant): Promise<Plant> {
   const db = await initDB()
-  
+
+  const now = new Date().toISOString()
   const plant: Plant = {
+    ...data,
     id: newId(),
-    ...data
+    createdAt: now,
+    updatedAt: now
   }
-  
+
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([STORES.PLANTS], 'readwrite')
     const store = transaction.objectStore(STORES.PLANTS)
@@ -103,19 +106,21 @@ export async function create(data: Omit<Plant, 'id'>): Promise<Plant> {
  * @param data - Updated plant data (id will be preserved from the id parameter)
  * @returns Promise that resolves to the updated plant
  */
-export async function update(id: string, data: Partial<Omit<Plant, 'id'>>): Promise<Plant> {
+export async function update(id: string, data: Partial<NewPlant>): Promise<Plant> {
   const db = await initDB()
-  
+
   // First, get the existing plant
   const existingPlant = await getById(id)
   if (!existingPlant) {
     throw new Error(`Plant with id ${id} not found`)
   }
-  
+
   const updatedPlant: Plant = {
     ...existingPlant,
     ...data,
-    id // Ensure id is preserved
+    id, // Ensure id is preserved
+    // createdAt берётся из существующей записи спредом выше и правке не подлежит
+    updatedAt: new Date().toISOString()
   }
   
   return new Promise((resolve, reject) => {

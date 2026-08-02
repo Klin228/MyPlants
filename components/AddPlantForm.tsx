@@ -2,11 +2,11 @@
 
 import { useState, FormEvent, useEffect } from 'react'
 import { X } from 'lucide-react'
-import type { Plant } from '@/lib/models/plant'
+import type { NewPlant, Plant } from '@/lib/models/plant'
 import { photosRepository } from '@/lib/repositories/photosRepository'
 
 interface AddPlantFormProps {
-  onAddPlant: (plant: Omit<Plant, 'id'>) => void
+  onAddPlant: (plant: NewPlant) => void
   onCancel: () => void
   initialPlant?: Plant | null
 }

@@ -8,7 +8,7 @@
 
 import { initDB } from '../db'
 import { STORES } from '../db/schema'
-import { newId } from '../ids'
+import { newId, timestampFromLegacyId } from '../ids'
 import type { Plant } from '../models/plant'
 import { plantsRepository } from './plantsRepository'
 import { photosRepository } from './photosRepository'
@@ -91,17 +91,28 @@ export async function migrateFromLocalStorage(): Promise<boolean> {
     // is still true at the end.
     let everythingMigrated = true
 
+    // Одна отметка на весь перенос: записи без собственной даты получат
+    // одинаковую, а не растянутую по времени выполнения цикла.
+    const migratedAt = new Date().toISOString()
+
     // Migrate each plant
     for (const plantData of plants) {
       // Normalize plant data
+      const id: string = plantData.id || newId()
+      // В старом формате дат не было. У записей той эпохи id это временная
+      // метка, из неё возраст и берём; иначе остаётся только текущий момент.
+      const createdAt = plantData.createdAt || timestampFromLegacyId(id) || migratedAt
+
       const plant: Plant = {
         // Существующий id сохраняем как есть: он уже разошёлся по ссылкам.
         // Новый нужен только записи, у которой его почему-то не оказалось.
-        id: plantData.id || newId(),
+        id,
         name: plantData.name || '',
         photos: plantData.photos || (plantData.photoUrl ? [plantData.photoUrl] : []),
         price: plantData.price || 0,
-        notes: plantData.notes
+        notes: plantData.notes,
+        createdAt,
+        updatedAt: plantData.updatedAt || createdAt
       }
 
       // Migrate photos from old IndexedDB to new IndexedDB if needed

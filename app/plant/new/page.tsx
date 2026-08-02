@@ -7,7 +7,7 @@ import AddPlantForm from '@/components/AddPlantForm'
 import Toast from '@/components/Toast'
 import { plantsRepository } from '@/lib/repositories/plantsRepository'
 import { initializeDatabase } from '@/lib/repositories/migration'
-import type { Plant } from '@/lib/models/plant'
+import type { NewPlant, Plant } from '@/lib/models/plant'
 
 export default function NewPlantPage() {
   const router = useRouter()
@@ -32,7 +32,7 @@ export default function NewPlantPage() {
     loadData()
   }, [])
 
-  const handleAddPlant = async (newPlantData: Omit<Plant, 'id'>) => {
+  const handleAddPlant = async (newPlantData: NewPlant) => {
     try {
       // Validate the data
       if (!newPlantData.name || !newPlantData.photos || newPlantData.photos.length === 0) {

@@ -1,12 +1,20 @@
 /**
  * Database Schema Definitions
- * 
+ *
  * This file defines the structure of our IndexedDB database.
  * It specifies object stores, their keys, and indexes.
  */
 
+import { timestampFromLegacyId } from '../ids'
+
 export const DB_NAME = 'plant-collection-db'
-export const DB_VERSION = 1
+
+/**
+ * Версия 2 добавила растениям createdAt и updatedAt. Схема при этом не
+ * поменялась — сторы и ключи те же, — но существующим записям надо проставить
+ * даты, а это делается в обработчике обновления.
+ */
+export const DB_VERSION = 2
 
 /**
  * Object Store Names
@@ -41,5 +49,61 @@ export function createSchema(db: IDBDatabase): void {
     db.createObjectStore(STORES.PHOTOS)
     // No keyPath - we use string keys directly
     // No indexes needed - photos are accessed directly by key
+  }
+}
+
+/**
+ * Миграции данных, идущие внутри versionchange-транзакции.
+ *
+ * Здесь им и место: транзакция обновления атомарна, выполняется ровно один раз
+ * на устройство и гарантированно раньше любого чтения. Отдельная отметка
+ * «уже мигрировали» не нужна — её роль играет номер версии базы.
+ *
+ * @param transaction - versionchange-транзакция открывающего запроса
+ * @param oldVersion - версия, с которой обновляемся; 0 для новой базы
+ */
+export function upgradeData(transaction: IDBTransaction, oldVersion: number): void {
+  if (oldVersion > 0 && oldVersion < 2) {
+    backfillDates(transaction)
+  }
+}
+
+/**
+ * Проставить createdAt и updatedAt записям, созданным до версии 2.
+ *
+ * До перехода на UUID id растения был `Date.now().toString()`, так что у
+ * старых записей возраст можно достать из самого id. У записей с UUID достать
+ * его неоткуда — таким ставим текущий момент, и они окажутся самыми новыми.
+ * Это то же поведение, что давала временная сортировка из тикета B1.
+ */
+function backfillDates(transaction: IDBTransaction): void {
+  const store = transaction.objectStore(STORES.PLANTS)
+  const request = store.openCursor()
+  const fallback = new Date().toISOString()
+  let touched = 0
+
+  request.onsuccess = () => {
+    const cursor = request.result
+    if (!cursor) {
+      if (touched > 0) {
+        console.log(`Проставлены даты у ${touched} записи(ей)`)
+      }
+      return
+    }
+
+    const plant = cursor.value
+    if (!plant.createdAt) {
+      const createdAt = timestampFromLegacyId(plant.id) ?? fallback
+      // Когда запись меняли в последний раз, мы не знаем: до этой версии такое
+      // просто не сохранялось. Честнее всего приравнять к дате создания.
+      cursor.update({ ...plant, createdAt, updatedAt: createdAt })
+      touched++
+    }
+
+    cursor.continue()
+  }
+
+  request.onerror = () => {
+    console.error('Не удалось проставить даты существующим записям:', request.error)
   }
 }

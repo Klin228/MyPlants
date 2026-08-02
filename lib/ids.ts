@@ -38,3 +38,25 @@ export function newId(): string {
     hex.slice(10, 16).join(''),
   ].join('-')
 }
+
+/**
+ * Достать дату создания из старого id-временной метки.
+ *
+ * До UUID id был `Date.now().toString()`, поэтому у записей той эпохи возраст
+ * лежит прямо в id. Нужно в двух местах: при обновлении схемы базы до второй
+ * версии и при переносе записей из localStorage.
+ *
+ * @returns дата в ISO 8601, либо null если id не является меткой времени
+ */
+export function timestampFromLegacyId(id: unknown): string | null {
+  if (typeof id !== 'string') return null
+
+  const timestamp = Number(id)
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return null
+
+  const date = new Date(timestamp)
+  // new Date(нечто несуразное) даёт Invalid Date, у которого toISOString бросает
+  if (Number.isNaN(date.getTime())) return null
+
+  return date.toISOString()
+}
