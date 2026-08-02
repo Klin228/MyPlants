@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "check:connections": "node scripts/check-connections.mjs"
+    "check:connections": "node scripts/check-connections.mjs",
+    "migrate": "node scripts/migrate.mjs"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
