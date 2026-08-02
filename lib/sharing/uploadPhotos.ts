@@ -183,5 +183,5 @@ function countKeysForPaths(prepared: Map<string, PreparedPhoto>, paths: string[]
 }
 
 function throwIfAborted(signal?: AbortSignal): void {
-  if (signal?.aborted) throw new DOMException('Публикация отменена', 'AbortError')
+  if (signal?.aborted) throw new DOMException('Publishing cancelled', 'AbortError')
 }

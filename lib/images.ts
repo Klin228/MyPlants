@@ -76,7 +76,7 @@ async function decode(source: Blob): Promise<{ image: DecodedImage; release: () 
     const image = await new Promise<HTMLImageElement>((resolve, reject) => {
       const element = new Image()
       element.onload = () => resolve(element)
-      element.onerror = () => reject(new Error('Не удалось разобрать изображение'))
+      element.onerror = () => reject(new Error('Could not decode the image'))
       element.src = url
     })
     return { image, release: () => URL.revokeObjectURL(url) }
@@ -101,7 +101,7 @@ async function encode(
   if (typeof OffscreenCanvas === 'function') {
     const canvas = new OffscreenCanvas(width, height)
     const context = canvas.getContext('2d')
-    if (!context) throw new Error('Не удалось получить контекст OffscreenCanvas')
+    if (!context) throw new Error('Could not get an OffscreenCanvas context')
 
     context.drawImage(image, 0, 0, width, height)
     return canvas.convertToBlob({ type: 'image/jpeg', quality })
@@ -112,13 +112,13 @@ async function encode(
   canvas.height = height
 
   const context = canvas.getContext('2d')
-  if (!context) throw new Error('Не удалось получить контекст canvas')
+  if (!context) throw new Error('Could not get a canvas context')
 
   context.drawImage(image, 0, 0, width, height)
 
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error('canvas не отдал изображение'))),
+      (blob) => (blob ? resolve(blob) : reject(new Error('canvas produced no image'))),
       'image/jpeg',
       quality
     )
@@ -140,8 +140,8 @@ async function encode(
 export async function hashBlob(blob: Blob): Promise<string> {
   if (!crypto.subtle) {
     throw new Error(
-      'Публикация требует защищённого соединения: crypto.subtle недоступен по http. ' +
-        'Откройте приложение по https или на localhost.'
+      'Publishing needs a secure connection: crypto.subtle is unavailable over http. ' +
+        'Open the app over https or on localhost.'
     )
   }
 

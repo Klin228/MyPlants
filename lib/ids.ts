@@ -39,6 +39,43 @@ export function newId(): string {
   ].join('-')
 }
 
+/** Алфавит без похожих друг на друга знаков: ссылку диктуют голосом и переписывают руками. */
+const PUBLIC_ID_ALPHABET = '23456789abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ'
+
+/**
+ * Идентификатор опубликованной коллекции — он же секрет.
+ *
+ * Появляется в адресе `/c/<id>`, и защита публикации целиком держится на том,
+ * что его нельзя угадать: аккаунтов нет, проверять права у читателя не у кого.
+ * Двадцать два знака из алфавита в 56 символов — это около 127 бит.
+ */
+export function newPublicId(): string {
+  return randomString(22, PUBLIC_ID_ALPHABET)
+}
+
+/**
+ * Токен отзыва публикации.
+ *
+ * Выдаётся один раз, хранится на устройстве владельца, в базе лежит только его
+ * хеш. Единственное доказательство права снять коллекцию, поэтому длиннее id.
+ */
+export function newRevokeToken(): string {
+  return randomString(43, PUBLIC_ID_ALPHABET)
+}
+
+function randomString(length: number, alphabet: string): string {
+  const bytes = new Uint8Array(length)
+  crypto.getRandomValues(bytes)
+
+  // Остаток от деления слегка смещает распределение в пользу первых символов
+  // алфавита. При 56 символах и 256 значениях байта перекос порядка процента —
+  // на неугадываемость 127 бит это не влияет, а код остаётся коротким.
+  let result = ''
+  for (const byte of bytes) result += alphabet[byte % alphabet.length]
+
+  return result
+}
+
 /**
  * Достать дату создания из старого id-временной метки.
  *

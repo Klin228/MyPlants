@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, Filter, Plus } from 'lucide-react'
+import { Search, Filter, Plus, Share2 } from 'lucide-react'
 import PlantCard from '@/components/PlantCard'
+import ShareDialog from '@/components/ShareDialog'
 import { plantsRepository } from '@/lib/repositories/plantsRepository'
 import { initializeDatabase } from '@/lib/repositories/migration'
 import { speciesKey } from '@/lib/species'
@@ -16,6 +17,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'name' | 'price' | 'date'>('name')
   const [isFilterOpen, setIsFilterOpen] = useState(false)
+  const [isShareOpen, setIsShareOpen] = useState(false)
   const filterRef = useRef<HTMLDivElement>(null)
 
   // Initialize database and load plants on mount and when page becomes visible
@@ -125,7 +127,18 @@ export default function Home() {
 
   return (
     <main className="page">
-      <h1 className="page-title">MyPlants</h1>
+      <div className="page-header">
+        <h1 className="page-title">MyPlants</h1>
+        {plants.length > 0 && (
+          <button
+            onClick={() => setIsShareOpen(true)}
+            className="btn btn--icon-square"
+            aria-label="Share collection"
+          >
+            <Share2 size={20} color="currentColor" />
+          </button>
+        )}
+      </div>
 
       {plants.length === 0 ? (
         <div className="empty-state">
@@ -211,6 +224,8 @@ export default function Home() {
           Add plant
         </button>
       </div>
+
+      {isShareOpen && <ShareDialog plants={plants} onClose={() => setIsShareOpen(false)} />}
     </main>
   )
 }

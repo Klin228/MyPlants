@@ -57,7 +57,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         if (!isPublicPhotoPath(pathname)) {
           // Клиент считает путь из хеша содержимого. Всё остальное — либо
           // ошибка, либо попытка записать в хранилище что-то своё.
-          throw new Error('Недопустимый путь фотографии')
+          throw new Error('Invalid photo path')
         }
 
         return {
@@ -82,7 +82,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     return NextResponse.json(result)
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Не удалось выдать токен'
+    const message = error instanceof Error ? error.message : 'Could not issue upload token'
     return NextResponse.json({ error: message }, { status: 400 })
   }
 }
@@ -107,11 +107,11 @@ export async function GET(request: Request): Promise<NextResponse> {
   const paths = raw.split(',').map((path) => path.trim()).filter(Boolean)
 
   if (paths.length > MAX_PATHS_PER_CHECK) {
-    return NextResponse.json({ error: 'Слишком много путей за один запрос' }, { status: 400 })
+    return NextResponse.json({ error: 'Too many paths in one request' }, { status: 400 })
   }
 
   if (paths.some((path) => !isPublicPhotoPath(path))) {
-    return NextResponse.json({ error: 'Недопустимый путь фотографии' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid photo path' }, { status: 400 })
   }
 
   const baseUrl = publicBlobBaseUrl()

@@ -819,3 +819,124 @@ body {
   font-size: 0.875rem;
   color: var(--color-text-subtle);
 }
+
+/* ---------- Шапка главной ---------- */
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-xl);
+}
+
+/* Заголовок внутри шапки свой отступ уже не задаёт */
+.page-header .page-title {
+  margin-bottom: 0;
+}
+
+/* ---------- Диалог поверх экрана ---------- */
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: var(--space-lg);
+  background-color: var(--color-scrim);
+  z-index: 1000;
+  overflow-y: auto;
+}
+
+@media (min-width: 640px) {
+  .sheet-backdrop {
+    align-items: center;
+  }
+}
+
+.sheet {
+  width: 100%;
+  max-width: 480px;
+  max-height: 100%;
+  overflow-y: auto;
+  padding: var(--space-lg);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-xl);
+}
+
+.sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.sheet-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: bold;
+  color: var(--color-text);
+}
+
+.sheet-text {
+  margin: 0 0 var(--space-lg) 0;
+  color: var(--color-text);
+}
+
+.sheet-note {
+  margin: var(--space-sm) 0 0 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* Ряд кнопок без верхней черты и фона: внутри диалога они лишние */
+.form-actions--plain {
+  padding: var(--space-lg) 0 0 0;
+  border-top: none;
+  background-color: transparent;
+}
+
+/* ---------- Публикация ---------- */
+
+.share-options {
+  margin: var(--space-lg) 0 0 0;
+  padding: 0;
+  border: none;
+}
+
+.share-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  /* Строка целиком — область нажатия: галочка сама по себе мелковата для пальца */
+  min-height: var(--tap-target);
+  cursor: pointer;
+}
+
+.share-progress {
+  margin-top: var(--space-lg);
+  padding: var(--space-md);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface-muted);
+  font-size: var(--text-md);
+  color: var(--color-text-muted);
+}
+
+.share-error {
+  margin: var(--space-lg) 0 0 0;
+  font-size: var(--text-md);
+  color: var(--color-danger);
+}
+
+/* ---------- Публичная страница коллекции ---------- */
+
+.public-photo {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}

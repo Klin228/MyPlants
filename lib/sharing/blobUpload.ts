@@ -58,7 +58,7 @@ export async function putBlob(
     return 'reused'
   }
 
-  throw new Error(`Хранилище отклонило файл (HTTP ${response.status}): ${text.slice(0, 200)}`)
+  throw new Error(`Storage rejected the file (HTTP ${response.status}): ${text.slice(0, 200)}`)
 }
 
 async function requestClientToken(
@@ -83,11 +83,11 @@ async function requestClientToken(
 
   if (!response.ok) {
     const text = await response.text()
-    throw new Error(`Не выдан токен на загрузку (HTTP ${response.status}): ${text.slice(0, 200)}`)
+    throw new Error(`No upload token issued (HTTP ${response.status}): ${text.slice(0, 200)}`)
   }
 
   const { clientToken } = (await response.json()) as { clientToken?: string }
-  if (!clientToken) throw new Error('Маршрут не вернул токен на загрузку')
+  if (!clientToken) throw new Error('The route returned no upload token')
 
   return clientToken
 }
