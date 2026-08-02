@@ -26,6 +26,7 @@ export default function PlantCard({ plant, onDelete, onEdit }: PlantCardProps) {
       {/* Plant name, price, notes, and edit button */}
       <div className="card-body">
         <h3 className="card-title">{plant.name}</h3>
+        {plant.species && <p className="card-species">{plant.species}</p>}
         <p className="card-price">${plant.price.toFixed(2)}</p>
 
         {/* Notes - only show if they exist */}

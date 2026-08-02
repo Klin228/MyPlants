@@ -6,6 +6,7 @@ import { Search, Filter, Plus } from 'lucide-react'
 import PlantCard from '@/components/PlantCard'
 import { plantsRepository } from '@/lib/repositories/plantsRepository'
 import { initializeDatabase } from '@/lib/repositories/migration'
+import { speciesKey } from '@/lib/species'
 import type { Plant } from '@/lib/models/plant'
 
 export default function Home() {
@@ -78,10 +79,15 @@ export default function Home() {
     router.push(`/plant/${plant.id}/edit`)
   }
 
-  // Filter plants based on search query
-  const filteredPlants = plants.filter(plant =>
-    plant.name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // Filter plants by name or species.
+  // Вид сравнивается через speciesKey, иначе «Thai Constellation» с
+  // типографским апострофом не найдётся по запросу с обычным.
+  const query = speciesKey(searchQuery)
+  const filteredPlants = query === ''
+    ? plants
+    : plants.filter(plant =>
+        speciesKey(plant.name).includes(query) || speciesKey(plant.species).includes(query)
+      )
 
   // Sort filtered plants
   const sortedPlants = [...filteredPlants].sort((a, b) => {
@@ -137,7 +143,7 @@ export default function Home() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search plants by name..."
+                placeholder="Search by name or species..."
                 className="search-input"
               />
             </div>

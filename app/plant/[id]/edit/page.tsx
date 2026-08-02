@@ -80,6 +80,11 @@ export default function EditPlantPage() {
     router.push('/')
   }
 
+  // Виды из уже загруженной коллекции — отдельного чтения из базы не нужно
+  const knownSpecies = plants
+    .map(p => p.species)
+    .filter((species): species is string => Boolean(species))
+
   if (!plant) {
     return (
       <div className="screen-centered">
@@ -104,6 +109,7 @@ export default function EditPlantPage() {
           onAddPlant={handleUpdatePlant}
           onCancel={handleCancel}
           initialPlant={plant}
+          knownSpecies={knownSpecies}
         />
       </div>
 

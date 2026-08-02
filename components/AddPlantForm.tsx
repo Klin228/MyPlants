@@ -1,14 +1,21 @@
 'use client'
 
-import { useState, FormEvent, useEffect } from 'react'
+import { useState, FormEvent, useEffect, useMemo } from 'react'
 import { X } from 'lucide-react'
 import type { NewPlant, Plant } from '@/lib/models/plant'
 import { photosRepository } from '@/lib/repositories/photosRepository'
+import { SPECIES_CATALOG } from '@/lib/data/speciesCatalog'
+import { buildSpeciesSuggestions, looksLikeBinomial, normalizeSpeciesInput } from '@/lib/species'
 
 interface AddPlantFormProps {
   onAddPlant: (plant: NewPlant) => void
   onCancel: () => void
   initialPlant?: Plant | null
+  /**
+   * Виды, уже встречающиеся в коллекции. Идут первыми в подсказках, чтобы не
+   * плодить один и тот же вид в разных написаниях.
+   */
+  knownSpecies?: string[]
 }
 
 interface PhotoPreview {
@@ -17,20 +24,40 @@ interface PhotoPreview {
   key?: string // IndexedDB key (for existing photos)
 }
 
-export default function AddPlantForm({ onAddPlant, onCancel, initialPlant }: AddPlantFormProps) {
+export default function AddPlantForm({
+  onAddPlant,
+  onCancel,
+  initialPlant,
+  knownSpecies = []
+}: AddPlantFormProps) {
   const [name, setName] = useState('')
+  const [species, setSpecies] = useState('')
   const [photoPreviews, setPhotoPreviews] = useState<PhotoPreview[]>([])
   const [price, setPrice] = useState('')
   const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // Список для datalist. knownSpecies приходит новым массивом на каждый рендер
+  // родителя, поэтому зависимость берётся по содержимому, а не по ссылке —
+  // то же правило, что и для ключей фотографий в PhotoGallery.
+  const speciesSuggestions = useMemo(
+    () => buildSpeciesSuggestions(knownSpecies, SPECIES_CATALOG),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [knownSpecies.join('|')]
+  )
+
+  // Имя выглядит как латинский биномен, а вид не заполнен — предложим подставить
+  const speciesSuggestionFromName =
+    species.trim() === '' && looksLikeBinomial(name) ? normalizeSpeciesInput(name) : null
+
   // Pre-fill form when editing
   useEffect(() => {
     if (initialPlant) {
       setName(initialPlant.name)
+      setSpecies(initialPlant.species || '')
       setPrice(initialPlant.price.toString())
       setNotes(initialPlant.notes || '')
-      
+
       // Load photo previews from repository
       if (initialPlant.photos && initialPlant.photos.length > 0) {
         photosRepository.getByPlantId(initialPlant.photos)
@@ -50,6 +77,7 @@ export default function AddPlantForm({ onAddPlant, onCancel, initialPlant }: Add
     } else {
       // Reset form when not editing
       setName('')
+      setSpecies('')
       setPhotoPreviews([])
       setPrice('')
       setNotes('')
@@ -227,6 +255,7 @@ export default function AddPlantForm({ onAddPlant, onCancel, initialPlant }: Add
       // Call the parent handler with photo keys
       onAddPlant({
         name: name.trim(),
+        species: normalizeSpeciesInput(species) || undefined,
         photos: photoKeys,
         price: parsedPrice,
         notes: notes.trim() || undefined
@@ -235,6 +264,7 @@ export default function AddPlantForm({ onAddPlant, onCancel, initialPlant }: Add
       // Reset form only when adding (not editing)
       if (!initialPlant) {
         setName('')
+        setSpecies('')
         setPhotoPreviews([])
         setPrice('')
         setNotes('')
@@ -262,6 +292,42 @@ export default function AddPlantForm({ onAddPlant, onCancel, initialPlant }: Add
             className="field-input"
             required
           />
+        </div>
+
+        <div className="field">
+          <label className="field-label" htmlFor="plant-species">
+            Species:
+          </label>
+          <input
+            id="plant-species"
+            type="text"
+            value={species}
+            onChange={(e) => setSpecies(e.target.value)}
+            className="field-input"
+            list="species-suggestions"
+            placeholder="Monstera deliciosa"
+            autoComplete="off"
+            autoCapitalize="off"
+            spellCheck={false}
+          />
+          <datalist id="species-suggestions">
+            {speciesSuggestions.map((suggestion) => (
+              <option key={suggestion} value={suggestion} />
+            ))}
+          </datalist>
+
+          {speciesSuggestionFromName && (
+            <p className="field-hint">
+              Looks like a species name.{' '}
+              <button
+                type="button"
+                className="link-button"
+                onClick={() => setSpecies(speciesSuggestionFromName)}
+              >
+                Use “{speciesSuggestionFromName}”
+              </button>
+            </p>
+          )}
         </div>
 
         <div className="field">

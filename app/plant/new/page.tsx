@@ -64,6 +64,11 @@ export default function NewPlantPage() {
     router.push('/')
   }
 
+  // Виды из уже загруженной коллекции — отдельного чтения из базы не нужно
+  const knownSpecies = plants
+    .map(plant => plant.species)
+    .filter((species): species is string => Boolean(species))
+
   return (
     <div className="screen">
       {/* Fixed Header */}
@@ -79,6 +84,7 @@ export default function NewPlantPage() {
         <AddPlantForm
           onAddPlant={handleAddPlant}
           onCancel={handleCancel}
+          knownSpecies={knownSpecies}
         />
       </div>
 
