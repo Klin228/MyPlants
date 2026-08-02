@@ -340,6 +340,13 @@ body {
   color: var(--color-text);
 }
 
+/* Откуда и когда: дата приобретения и источник одной строкой */
+.card-meta {
+  margin: 0 0 var(--space-md) 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
 .card-notes {
   margin-bottom: var(--space-md);
   padding: var(--space-md);

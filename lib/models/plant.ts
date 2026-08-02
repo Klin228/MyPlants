@@ -22,6 +22,18 @@ export interface Plant {
   species?: string
   photos: string[] // Array of photo keys (IndexedDB keys, not blobs)
   price: number
+  /**
+   * Когда растение появилось в коллекции — календарная дата `YYYY-MM-DD`.
+   *
+   * Именно дата, а не метка времени, и потому формат отличается от
+   * `createdAt`. У покупки нет часа: сохрани мы ISO-метку, выбранное первое
+   * августа в UTC+3 легло бы в базу как `2026-07-31T21:00:00Z` и показалось
+   * бы июлем. `YYYY-MM-DD` часового пояса не имеет и приезжает ровно тем, что
+   * выбрали. Это же отдаёт `<input type="date">`.
+   */
+  acquiredOn?: string
+  /** Откуда взялось: магазин, питомник, человек, «черенок от соседки». */
+  source?: string
   notes?: string
   /**
    * Даты в ISO 8601, UTC — то, что отдаёт `Date.prototype.toISOString`.

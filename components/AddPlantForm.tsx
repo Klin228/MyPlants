@@ -6,6 +6,7 @@ import type { NewPlant, Plant } from '@/lib/models/plant'
 import { photosRepository } from '@/lib/repositories/photosRepository'
 import { SPECIES_CATALOG } from '@/lib/data/speciesCatalog'
 import { buildSpeciesSuggestions, looksLikeBinomial, normalizeSpeciesInput } from '@/lib/species'
+import { todayAsDateInput } from '@/lib/dates'
 
 interface AddPlantFormProps {
   onAddPlant: (plant: NewPlant) => void
@@ -34,8 +35,13 @@ export default function AddPlantForm({
   const [species, setSpecies] = useState('')
   const [photoPreviews, setPhotoPreviews] = useState<PhotoPreview[]>([])
   const [price, setPrice] = useState('')
+  const [acquiredOn, setAcquiredOn] = useState('')
+  const [source, setSource] = useState('')
   const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Растение не могло появиться в коллекции в будущем — обычная защита от опечатки
+  const today = useMemo(() => todayAsDateInput(), [])
 
   // Список для datalist. knownSpecies приходит новым массивом на каждый рендер
   // родителя, поэтому зависимость берётся по содержимому, а не по ссылке —
@@ -56,6 +62,8 @@ export default function AddPlantForm({
       setName(initialPlant.name)
       setSpecies(initialPlant.species || '')
       setPrice(initialPlant.price.toString())
+      setAcquiredOn(initialPlant.acquiredOn || '')
+      setSource(initialPlant.source || '')
       setNotes(initialPlant.notes || '')
 
       // Load photo previews from repository
@@ -80,6 +88,8 @@ export default function AddPlantForm({
       setSpecies('')
       setPhotoPreviews([])
       setPrice('')
+      setAcquiredOn('')
+      setSource('')
       setNotes('')
     }
   }, [initialPlant])
@@ -258,6 +268,8 @@ export default function AddPlantForm({
         species: normalizeSpeciesInput(species) || undefined,
         photos: photoKeys,
         price: parsedPrice,
+        acquiredOn: acquiredOn || undefined,
+        source: source.trim() || undefined,
         notes: notes.trim() || undefined
       })
 
@@ -267,6 +279,8 @@ export default function AddPlantForm({
         setSpecies('')
         setPhotoPreviews([])
         setPrice('')
+        setAcquiredOn('')
+        setSource('')
         setNotes('')
       }
     } catch (error) {
@@ -383,6 +397,34 @@ export default function AddPlantForm({
             onChange={(e) => setPrice(e.target.value)}
             className="field-input"
             required
+          />
+        </div>
+
+        <div className="field">
+          <label className="field-label" htmlFor="plant-acquired-on">
+            Acquired (optional):
+          </label>
+          <input
+            id="plant-acquired-on"
+            type="date"
+            value={acquiredOn}
+            onChange={(e) => setAcquiredOn(e.target.value)}
+            className="field-input"
+            max={today}
+          />
+        </div>
+
+        <div className="field">
+          <label className="field-label" htmlFor="plant-source">
+            Source (optional):
+          </label>
+          <input
+            id="plant-source"
+            type="text"
+            value={source}
+            onChange={(e) => setSource(e.target.value)}
+            className="field-input"
+            placeholder="Nursery, shop, a friend…"
           />
         </div>
 
