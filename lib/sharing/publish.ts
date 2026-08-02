@@ -98,6 +98,49 @@ export async function publishCollection(
   return { publication, skipped, updated: Boolean(existing) && saved.reusedExisting }
 }
 
+export interface RevokeResult {
+  /** Сколько файлов убрано из хранилища */
+  deletedFiles: number
+  /** Коллекции уже не было: запись на устройстве отстала от действительности */
+  alreadyGone: boolean
+}
+
+/**
+ * Отозвать публикацию.
+ *
+ * Локальная запись стирается в любом случае, когда сервер сказал «этого
+ * больше нет» — включая случай, когда коллекции уже не было. Оставить запись
+ * значило бы навсегда запереть владельца в состоянии, из которого он не может
+ * ни обновить публикацию, ни отозвать её.
+ */
+export async function revokePublication(): Promise<RevokeResult> {
+  const publication = readPublication()
+  if (!publication) throw new Error('Nothing to revoke: no publication on this device')
+
+  const response = await fetch('/api/publish/revoke', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      collectionId: publication.id,
+      revokeToken: publication.revokeToken,
+    }),
+  })
+
+  if (!response.ok) {
+    const { error } = (await response.json().catch(() => ({}))) as { error?: string }
+    throw new Error(error ?? `Could not revoke (HTTP ${response.status})`)
+  }
+
+  const { deletedFiles, alreadyGone } = (await response.json()) as {
+    deletedFiles?: number
+    alreadyGone?: boolean
+  }
+
+  forgetPublication()
+
+  return { deletedFiles: deletedFiles ?? 0, alreadyGone: alreadyGone ?? false }
+}
+
 type SendResult =
   | { ok: true; id: string; revokeToken: string; reusedExisting: boolean }
   | { ok: false; status: number; error?: string }

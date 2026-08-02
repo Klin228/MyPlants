@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react'
 import { Check, Copy, Share2, X } from 'lucide-react'
 import type { Plant } from '@/lib/models/plant'
 import { DEFAULT_PUBLISH_OPTIONS, type PublishOptions } from '@/lib/sharing/types'
-import { publishCollection, type PublishProgress } from '@/lib/sharing/publish'
+import { publishCollection, revokePublication, type PublishProgress } from '@/lib/sharing/publish'
 import { publicationUrl, readPublication, type Publication } from '@/lib/sharing/publication'
 
 interface ShareDialogProps {
@@ -44,6 +44,10 @@ export default function ShareDialog({ plants, onClose }: ShareDialogProps) {
   const [result, setResult] = useState<{ url: string; skipped: string[]; updated: boolean } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  /** Отзыв необратим, поэтому спрашиваем прежде чем делать. */
+  const [confirmingRevoke, setConfirmingRevoke] = useState(false)
+  const [revoking, setRevoking] = useState(false)
+  const [revoked, setRevoked] = useState<{ deletedFiles: number } | null>(null)
 
   // Прошлый выбор восстанавливается: обновляя публикацию, никто не хочет
   // заново вспоминать, что он тогда разрешил показывать.
@@ -58,7 +62,7 @@ export default function ShareDialog({ plants, onClose }: ShareDialogProps) {
 
   const withoutPhotos = plants.filter((plant) => !plant.photos || plant.photos.length === 0).length
   const publishable = plants.length - withoutPhotos
-  const busy = progress !== null && result === null
+  const busy = (progress !== null && result === null) || revoking
 
   const toggle = (key: keyof PublishOptions) =>
     setOptions((current) => ({ ...current, [key]: !current[key] }))
@@ -90,6 +94,23 @@ export default function ShareDialog({ plants, onClose }: ShareDialogProps) {
     }
   }
 
+  const revoke = async () => {
+    setError(null)
+    setRevoking(true)
+
+    try {
+      const { deletedFiles } = await revokePublication()
+      setRevoked({ deletedFiles })
+      setExisting(null)
+      setResult(null)
+      setConfirmingRevoke(false)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setRevoking(false)
+    }
+  }
+
   const share = async () => {
     if (!result) return
     try {
@@ -103,13 +124,31 @@ export default function ShareDialog({ plants, onClose }: ShareDialogProps) {
     <div className="sheet-backdrop" onClick={busy ? undefined : onClose}>
       <div className="sheet" onClick={(event) => event.stopPropagation()}>
         <div className="sheet-header">
-          <h2 className="sheet-title">{result ? 'Collection published' : 'Share collection'}</h2>
+          <h2 className="sheet-title">
+            {revoked ? 'Link removed' : result ? 'Collection published' : 'Share collection'}
+          </h2>
           <button onClick={onClose} className="btn btn--icon" aria-label="Close" disabled={busy}>
             <X size={18} color="currentColor" />
           </button>
         </div>
 
-        {result ? (
+        {revoked ? (
+          <>
+            <p className="sheet-text">
+              The link no longer works and the published copy is gone.
+              {revoked.deletedFiles > 0 &&
+                ` ${revoked.deletedFiles} ${revoked.deletedFiles === 1 ? 'photo' : 'photos'} removed from storage.`}
+            </p>
+            <p className="sheet-note">
+              Your collection on this device is untouched. Publishing again creates a new link.
+            </p>
+            <div className="form-actions form-actions--plain">
+              <button onClick={onClose} className="btn btn--primary">
+                Done
+              </button>
+            </div>
+          </>
+        ) : result ? (
           <>
             <p className="sheet-text">
               {result.updated
@@ -143,6 +182,14 @@ export default function ShareDialog({ plants, onClose }: ShareDialogProps) {
                 Left out because they have no photo: {result.skipped.join(', ')}
               </p>
             )}
+
+            <RevokeBlock
+              confirming={confirmingRevoke}
+              busy={revoking}
+              onAsk={() => setConfirmingRevoke(true)}
+              onCancel={() => setConfirmingRevoke(false)}
+              onConfirm={revoke}
+            />
           </>
         ) : (
           <>
@@ -222,8 +269,66 @@ export default function ShareDialog({ plants, onClose }: ShareDialogProps) {
                 {busy ? 'Publishing…' : existing ? 'Update' : 'Publish'}
               </button>
             </div>
+
+            {existing && (
+              <RevokeBlock
+                confirming={confirmingRevoke}
+                busy={revoking}
+                onAsk={() => setConfirmingRevoke(true)}
+                onCancel={() => setConfirmingRevoke(false)}
+                onConfirm={revoke}
+              />
+            )}
           </>
         )}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Отзыв публикации в два шага.
+ *
+ * Действие необратимо: ссылка перестаёт работать у всех, кому её отправили, а
+ * фотографии удаляются из хранилища. Одной кнопки для такого мало — сначала
+ * спрашиваем, потом делаем.
+ */
+function RevokeBlock({
+  confirming,
+  busy,
+  onAsk,
+  onCancel,
+  onConfirm,
+}: {
+  confirming: boolean
+  busy: boolean
+  onAsk: () => void
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  if (!confirming) {
+    return (
+      <p className="sheet-note">
+        <button type="button" className="link-button link-button--danger" onClick={onAsk} disabled={busy}>
+          Remove this link
+        </button>
+      </p>
+    )
+  }
+
+  return (
+    <div className="revoke-confirm">
+      <p className="sheet-text">
+        Remove the published collection? The link stops working for everyone you gave it to, and the
+        photos are deleted from storage. This cannot be undone.
+      </p>
+      <div className="form-actions form-actions--plain">
+        <button onClick={onCancel} className="btn btn--secondary" disabled={busy}>
+          Keep it
+        </button>
+        <button onClick={onConfirm} className="btn btn--danger" disabled={busy}>
+          {busy ? 'Removing…' : 'Remove'}
+        </button>
       </div>
     </div>
   )
