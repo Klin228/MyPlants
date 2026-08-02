@@ -13,6 +13,9 @@ import { readFile } from 'node:fs/promises'
 
 const ENV_FILE = '.env.local'
 
+/** Ни одна проверка не должна висеть дольше этого: лучше внятный отказ. */
+const REQUEST_TIMEOUT_MS = 15_000
+
 /**
  * Прочитать .env.local самостоятельно.
  *
@@ -51,62 +54,105 @@ async function loadEnv() {
   return true
 }
 
-async function checkDatabase() {
-  if (!process.env.DATABASE_URL) {
-    return { ok: false, detail: 'DATABASE_URL не задана' }
+/**
+ * Заглушка, которую `vercel env pull` пишет вместо значений переменных,
+ * помеченных в проекте как секретные. Их содержимое CLI не отдаёт вообще,
+ * и понять это по ошибке клиента невозможно — он просто ругается на мусор.
+ */
+const SENSITIVE_PLACEHOLDER = '[SENSITIVE]'
+
+/**
+ * Ограничить ожидание промиса.
+ *
+ * Отменить сам запрос это не может — только перестать его ждать. Для проверки
+ * настройки этого достаточно: важно не молчать неопределённо долго.
+ */
+function withTimeout(promise, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`${message} за ${REQUEST_TIMEOUT_MS / 1000} с`)), REQUEST_TIMEOUT_MS)
+    }),
+  ])
+}
+
+function readSecret(name) {
+  const value = process.env[name]
+
+  if (!value) {
+    return { ok: false, detail: `переменная ${name} не задана` }
   }
 
+  if (value === SENSITIVE_PLACEHOLDER) {
+    return {
+      ok: false,
+      detail: `${name} = ${SENSITIVE_PLACEHOLDER}: значение помечено секретным, ` +
+        'vercel env pull его не отдаёт. Скопируйте вручную из панели Vercel.',
+    }
+  }
+
+  return { ok: true, value }
+}
+
+async function checkDatabase() {
+  const secret = readSecret('DATABASE_URL')
+  if (!secret.ok) return secret
+
   const { neon } = await import('@neondatabase/serverless')
-  const sql = neon(process.env.DATABASE_URL)
-  const rows = await sql`select version() as version`
+  const sql = neon(secret.value)
+  const rows = await withTimeout(sql`select version() as version`, 'Neon не ответил')
 
   // «PostgreSQL 17.2 on x86_64...» — оставляем первые два слова
   const version = String(rows[0]?.version ?? '').split(' ').slice(0, 2).join(' ')
   return { ok: true, detail: version || 'соединение есть' }
 }
 
+/**
+ * Проверка блоб-хранилища прямым запросом к API, без пакета `@vercel/blob`.
+ *
+ * Пакет здесь намеренно не используется, и на это две причины.
+ *
+ * Он ходит не через глобальный `fetch`, а своим транспортом, и в отдельных
+ * окружениях блокируется наглухо: вызов не возвращается и не падает. Проверка
+ * настройки, способная зависнуть на минуты, бесполезна. Прямой запрос к тому
+ * же API в том же окружении отвечает за полсекунды.
+ *
+ * И при пустом `token` он пытается авторизоваться через OIDC, подхватывая
+ * `VERCEL_OIDC_TOKEN`, который `vercel env pull` кладёт рядом, — падая с
+ * «OIDC is enabled for this project, but not for the development environment»
+ * при совершенно верном токене хранилища.
+ *
+ * Одного запроса к списку файлов достаточно: он подтверждает и что токен
+ * рабочий, и что хранилище на месте. Заодно ничего не создаётся, так что и
+ * убирать за собой нечего.
+ *
+ * Само приложение при загрузке фотографий (тикет C3) будет пользоваться
+ * пакетом: там он работает в среде Vercel, для которой и написан.
+ */
 async function checkBlob() {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    return { ok: false, detail: 'BLOB_READ_WRITE_TOKEN не задан' }
+  const secret = readSecret('BLOB_READ_WRITE_TOKEN')
+  if (!secret.ok) return secret
+
+  const response = await fetch('https://blob.vercel-storage.com?limit=1', {
+    headers: { authorization: `Bearer ${secret.value}` },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  })
+
+  if (response.status === 403) {
+    return { ok: false, detail: 'токен отклонён (HTTP 403) — проверьте BLOB_READ_WRITE_TOKEN' }
   }
 
-  const { put, del } = await import('@vercel/blob')
-
-  // Проба уходит под своим именем и удаляется в finally, чтобы не оставлять
-  // мусор в хранилище даже если чтение упадёт.
-  const pathname = `connection-check/${Date.now()}.txt`
-  const body = 'MyPlants connection check'
-  let url
-
-  try {
-    const uploaded = await put(pathname, body, {
-      access: 'public',
-      addRandomSuffix: false,
-      contentType: 'text/plain',
-    })
-    url = uploaded.url
-
-    const response = await fetch(url, { cache: 'no-store' })
-    if (!response.ok) {
-      return { ok: false, detail: `загрузилось, но не читается: HTTP ${response.status}` }
-    }
-
-    const text = await response.text()
-    if (text !== body) {
-      return { ok: false, detail: 'прочитано не то, что записано' }
-    }
-
-    return { ok: true, detail: 'запись, чтение и удаление прошли' }
-  } finally {
-    if (url) {
-      try {
-        await del(url)
-      } catch (error) {
-        console.warn(`  ! пробный файл не удалён, уберите вручную: ${url}`)
-        console.warn(`    ${error.message}`)
-      }
-    }
+  if (!response.ok) {
+    const body = await response.text()
+    return { ok: false, detail: `HTTP ${response.status}: ${body.slice(0, 120)}` }
   }
+
+  const { blobs, hasMore } = await response.json()
+  const contents = blobs.length === 0
+    ? 'хранилище пустое'
+    : `файлов минимум ${blobs.length}${hasMore ? '+' : ''}`
+
+  return { ok: true, detail: `токен принят, ${contents}` }
 }
 
 async function main() {
