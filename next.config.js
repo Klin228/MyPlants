@@ -97,4 +97,13 @@ const withPWA = require('@ducanh2912/next-pwa').default({
 
 module.exports = withPWA({
   reactStrictMode: true,
+  experimental: {
+    // Шрифт для картинки превью читается с диска. Трассировка Next его не
+    // видит — обращение идёт по вычисляемому пути, — и без явного указания
+    // файл не попадёт в бандл функции на Vercel: локально всё работает,
+    // на проде «файл не найден».
+    outputFileTracingIncludes: {
+      '/c/[id]/opengraph-image': ['./assets/**'],
+    },
+  },
 })

@@ -16,7 +16,31 @@ const ptSans = PT_Sans({
   display: 'swap',
 })
 
+/**
+ * Адрес, от которого считаются абсолютные ссылки в метаданных.
+ *
+ * Без него Next выведет `og:image` относительным, а краулеры мессенджеров
+ * понимают только абсолютный — превью просто не появится.
+ *
+ * По убыванию надёжности: явно заданный адрес, стабильный домен продакшена от
+ * Vercel, адрес конкретного развёртывания, локальный сервер. Два средних
+ * меняются от деплоя к деплою, так что при своём домене стоит задать первый.
+ */
+function siteUrl(): URL {
+  const explicit = process.env.NEXT_PUBLIC_SITE_URL
+  if (explicit) return new URL(explicit)
+
+  const production = process.env.VERCEL_PROJECT_PRODUCTION_URL
+  if (production) return new URL(`https://${production}`)
+
+  const deployment = process.env.VERCEL_URL
+  if (deployment) return new URL(`https://${deployment}`)
+
+  return new URL('http://localhost:3000')
+}
+
 export const metadata: Metadata = {
+  metadataBase: siteUrl(),
   title: 'Plant Collection',
   description: 'Manage your personal plant collection',
   manifest: '/manifest.json',

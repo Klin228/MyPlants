@@ -103,10 +103,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { collection, plants } = data
   const title = collection.title || 'Plant collection'
   const species = new Set(plants.map((plant) => speciesKey(plant.species ?? '')).filter(Boolean))
+  const description = describe(plants.length, species.size)
 
   return {
     title,
-    description: describe(plants.length, species.size),
+    description,
+    // Картинку в og:image и twitter:image Next подставит сам из соседнего
+    // opengraph-image.tsx — здесь только остальные теги.
+    openGraph: { title, description, type: 'website' },
+    twitter: { card: 'summary_large_image', title, description },
     // Индексация только по явному разрешению владельца. Ссылка секретна тем,
     // что её нельзя угадать; отправивший её двоим друзьям соглашался на это, а
     // не на выдачу в поиске.
