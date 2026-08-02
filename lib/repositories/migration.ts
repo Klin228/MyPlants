@@ -8,6 +8,7 @@
 
 import { initDB } from '../db'
 import { STORES } from '../db/schema'
+import { newId } from '../ids'
 import type { Plant } from '../models/plant'
 import { plantsRepository } from './plantsRepository'
 import { photosRepository } from './photosRepository'
@@ -94,7 +95,9 @@ export async function migrateFromLocalStorage(): Promise<boolean> {
     for (const plantData of plants) {
       // Normalize plant data
       const plant: Plant = {
-        id: plantData.id || Date.now().toString(),
+        // Существующий id сохраняем как есть: он уже разошёлся по ссылкам.
+        // Новый нужен только записи, у которой его почему-то не оказалось.
+        id: plantData.id || newId(),
         name: plantData.name || '',
         photos: plantData.photos || (plantData.photoUrl ? [plantData.photoUrl] : []),
         price: plantData.price || 0,

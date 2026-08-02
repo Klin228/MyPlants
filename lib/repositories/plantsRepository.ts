@@ -13,6 +13,7 @@
 
 import { initDB } from '../db'
 import { STORES } from '../db/schema'
+import { newId } from '../ids'
 import type { Plant } from '../models/plant'
 import { photosRepository } from './photosRepository'
 
@@ -75,7 +76,7 @@ export async function create(data: Omit<Plant, 'id'>): Promise<Plant> {
   const db = await initDB()
   
   const plant: Plant = {
-    id: Date.now().toString(),
+    id: newId(),
     ...data
   }
   
