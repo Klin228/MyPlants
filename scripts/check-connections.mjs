@@ -156,6 +156,42 @@ async function checkBlob() {
 }
 
 /**
+ * Отправить пробный файл выданным токеном.
+ *
+ * Содержимое — минимальный корректный JPEG в полторы сотни байт, путь всегда
+ * один и тот же: он считается из содержимого, как у настоящих фотографий.
+ *
+ * За собой проверка не прибирает, и это осознанно. Удаление требует полного
+ * токена записи, а проверка по замыслу разговаривает только с развёрнутым
+ * приложением и никаких секретов не знает. Заводить ради уборки маршрут
+ * удаления значило бы открыть его всему интернету. Поскольку путь адресуется
+ * содержимым, сколько бы раз проверку ни запускали, в хранилище остаётся один
+ * файл на 159 байт.
+ */
+async function tryUpload(pathname, clientToken) {
+  const jpeg = Uint8Array.from(atob(TINY_JPEG_BASE64), (char) => char.charCodeAt(0))
+
+  const response = await fetch(`https://blob.vercel-storage.com/${pathname}`, {
+    method: 'PUT',
+    headers: { authorization: `Bearer ${clientToken}` },
+    body: jpeg,
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  })
+
+  if (!response.ok) {
+    return { ok: false, detail: `HTTP ${response.status}: ${(await response.text()).slice(0, 160)}` }
+  }
+
+  return { ok: true }
+}
+
+/** Минимальный корректный JPEG 1×1: меньше нечего отправлять. */
+const TINY_JPEG_BASE64 =
+  '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0a' +
+  'HBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAA' +
+  'AAAAAAAAAAAACP/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AN//Z'
+
+/**
  * Проверка развёрнутого приложения, а не локального окружения.
  *
  * Появилась после того, как публикация на проде отказала при полностью
@@ -207,15 +243,34 @@ async function checkDeployment(baseUrl) {
 
     const text = await response.text()
 
-    if (response.ok && text.includes('clientToken')) {
-      console.log('✓ Публикация фотографий: токен выдаётся')
-    } else {
+    if (!response.ok || !text.includes('clientToken')) {
       console.log(`✗ Публикация фотографий: HTTP ${response.status} — ${text.slice(0, 160)}`)
       if (response.status === 503) {
         console.log('  Задайте BLOB_READ_WRITE_TOKEN в переменных окружения проекта на Vercel')
         console.log('  и передеплойте: переменные подхватываются только новой сборкой.')
       }
       allOk = false
+    } else {
+      // Выданного токена мало. Значение переменной может быть от того же
+      // хранилища, но другое — устаревшее или скопированное с кавычками, — и
+      // тогда токен выдаётся исправно, а хранилище отвечает на загрузку
+      // «Token mismatch». Один отказ прячется за другим, поэтому проверка
+      // доводится до конца: настоящая отправка файла и уборка за собой.
+      const { clientToken } = JSON.parse(text)
+      const outcome = await tryUpload(pathname, clientToken)
+
+      if (outcome.ok) {
+        console.log('✓ Публикация фотографий: пробный файл загружен')
+        console.log(`  Остаётся в хранилище: ${pathname} (159 байт, всегда один и тот же)`)
+      } else {
+        console.log(`✗ Публикация фотографий: хранилище отклонило файл — ${outcome.detail}`)
+        if (outcome.detail.includes('Token mismatch')) {
+          console.log('  Токен выдаётся, но хранилище его не принимает: значение')
+          console.log('  BLOB_READ_WRITE_TOKEN на Vercel не совпадает с рабочим.')
+          console.log('  Скопируйте его заново, без кавычек и пробелов, и передеплойте.')
+        }
+        allOk = false
+      }
     }
   } catch (error) {
     console.log(`✗ Публикация фотографий: ${error.message}`)
