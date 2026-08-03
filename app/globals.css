@@ -6,10 +6,20 @@
  * оставлен только для того, что меняется покадрово во время жеста.
  *
  * Имена токенов семантические, а не по внешнему виду — иначе в тёмной теме
- * пришлось бы заводить --color-white со значением чёрного.
+ * пришлось бы заводить --color-white со значением чёрного. Тикет D8 показал,
+ * что это правило себя оправдало: тёмная тема это один блок переопределений
+ * ниже, компоненты не тронуты вовсе.
  */
 
 :root {
+  /*
+   * Обе схемы объявлены, чтобы браузер сам перекрасил то, что рисует он, а не
+   * мы: список сортировки, поле даты, полосы прокрутки, курсор в полях. Без
+   * этого системная тёмная тема давала тёмную страницу со светлыми
+   * системными элементами.
+   */
+  color-scheme: light dark;
+
   /* Цвет */
   --color-bg: #d9d0de;
   --color-surface: #ffffff;
@@ -27,6 +37,15 @@
 
   --color-border: #dddddd;
   --color-border-soft: #e0e0e0;
+
+  /*
+   * Текст на цветной заливке — кнопках. Раньше эти кнопки брали
+   * `--color-surface`, и в тёмной теме получилось бы случайно: там surface
+   * тёмный, то есть текст сам собой стал бы тёмным на светлой заливке. Работало
+   * бы, но по совпадению, а не по замыслу. Значение здесь повторяет то, что
+   * было, — светлая тема выглядит ровно как раньше.
+   */
+  --color-on-fill: #ffffff;
 
   /* Поверх фотографии */
   --color-scrim: rgba(0, 0, 0, 0.6);
@@ -106,6 +125,87 @@
    */
   --fab-bottom: max(var(--space-xl), env(safe-area-inset-bottom));
   --fab-reserve: calc(var(--fab-bottom) + var(--tap-target));
+}
+
+/*
+ * ---------- Тёмная тема ----------
+ *
+ * Следует системной настройке и только ей: переключателя нет намеренно. Своя
+ * кнопка означала бы третье состояние («как в системе / светлая / тёмная»),
+ * его хранение и синхронизацию между устройствами — а системную настройку
+ * человек уже выставил один раз для всего телефона.
+ *
+ * Переопределяются только токены. Ни один компонент и ни один класс ниже про
+ * тему не знает — это и была цель A5.
+ *
+ * Значения не подобраны на глаз: контраст каждой пары посчитан по WCAG.
+ * Тёмная тема выходит контрастнее светлой почти везде, и это не заслуга, а
+ * следствие того, что светлый фон `#d9d0de` сам по себе довольно тёмный.
+ * Замеры и то, что в светлой теме контраста не хватает, — в `TASKS.md`, D8.
+ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Фон и поверхности. Карточка светлее фона — так она читается как
+       приподнятая, без опоры на тень: на тёмном тень почти не видна. */
+    --color-bg: #17141c;
+    --color-surface: #221d29;
+    --color-surface-muted: #2b2534;
+    --color-surface-empty: #2f2839;
+
+    /* Тот же сиреневый, но осветлённый: исходный #8d80ad на тёмном фоне даёт
+       контраст 1.9 и для стоимости коллекции не годится. */
+    --color-accent: #b7a8db;
+    --color-accent-hover: #c9bde6;
+
+    /* Зелёный не меняется: это цвет продукта, и на тёмном он читается. */
+
+    --color-text: #ece9f1;
+    --color-text-muted: #a8a1b5;
+    --color-text-subtle: #9a93a8;
+
+    /* Красный осветлён по той же причине, что и сиреневый. Из-за этого текст
+       на залитой красным кнопке становится тёмным — отсюда --color-on-fill. */
+    --color-danger: #f2837d;
+
+    --color-border: #3a3344;
+    --color-border-soft: #332d3d;
+
+    /* На осветлённых заливках белый текст даёт 2.2–2.8, тёмный — 6.5–8.4 */
+    --color-on-fill: #17141c;
+
+    /* Тени на тёмном фоне почти не работают, но и мешать не должны:
+       остаются как лёгкая глубина у диалогов и всплывающих элементов. */
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.45);
+    --shadow-xl: 0 4px 12px rgba(0, 0, 0, 0.55);
+    --shadow-toast: 0 4px 12px rgba(0, 0, 0, 0.6);
+  }
+}
+
+/*
+ * ---------- Меньше движения ----------
+ *
+ * Системная настройка «уменьшить движение» — это не про вкус, а про людей, у
+ * которых движение на экране вызывает тошноту или головокружение.
+ *
+ * Правило намеренно по звёздочке и с `!important`: сдвиг ленты в галерее и в
+ * просмотрщике задаётся инлайновым стилем из компонента, и обычным селектором
+ * его не перебить. Обнуляется только длительность, не сами значения: лента
+ * по-прежнему встаёт на нужный кадр, просто мгновенно.
+ *
+ * В D6 здесь стояло правило только для скелетона — оно было частным случаем
+ * этого и больше не нужно.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 body {
@@ -202,7 +302,7 @@ body {
   min-height: var(--tap-target);
   border-radius: var(--radius-md);
   background-color: var(--color-primary);
-  color: var(--color-surface);
+  color: var(--color-on-fill);
   font-size: var(--text-lg);
 }
 
@@ -213,7 +313,7 @@ body {
   min-height: var(--tap-target);
   border-radius: var(--radius-lg);
   background-color: var(--color-primary);
-  color: var(--color-surface);
+  color: var(--color-on-fill);
   /* Было 1.3rem вне шкалы: размер считался под кнопку в половину экрана */
   font-size: var(--text-lg);
   white-space: nowrap;
@@ -236,7 +336,7 @@ body {
   padding: 0.875rem var(--space-xl);
   border-radius: var(--radius-md);
   background-color: var(--color-accent);
-  color: var(--color-surface);
+  color: var(--color-on-fill);
   font-size: var(--text-base);
   font-weight: 600;
   box-shadow: var(--shadow-md);
@@ -410,7 +510,7 @@ body {
   padding: 0 var(--space-md);
   border-radius: var(--radius-sm);
   background-color: var(--color-danger);
-  color: var(--color-surface);
+  color: var(--color-on-fill);
   font-size: var(--text-sm);
 }
 
@@ -482,12 +582,22 @@ body {
   color: var(--color-danger);
 }
 
+/*
+ * Фон и цвет текста заданы явно, а не оставлены браузеру.
+ *
+ * Раньше их тут не было: умолчание браузера в светлой теме — белый фон с
+ * чёрным текстом, и оно случайно совпадало с задуманным. В системной тёмной
+ * теме то же умолчание даёт нейтрально-серый `#3b3b3b`, который спорит с
+ * сиреневатыми поверхностями приложения. Найдено замером, а не на глаз.
+ */
 .field-input {
   width: 100%;
   padding: var(--space-md);
   box-sizing: border-box;
   border: 1px solid var(--color-accent);
   border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  color: var(--color-text);
   font-family: var(--font-body);
   font-size: var(--text-input);
 }
@@ -605,6 +715,10 @@ body {
   box-sizing: border-box;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
+  /* Тот же случай, что у .field-input: без этих двух строк тёмная тема давала
+     серое поле поиска на сиреневатом фоне. */
+  background-color: var(--color-surface);
+  color: var(--color-text);
   font-family: var(--font-body);
   font-size: var(--text-input);
 }
@@ -956,18 +1070,6 @@ body {
 @keyframes skeleton-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.55; }
-}
-
-/*
- * Анимация здесь новая, поэтому и отключение здесь же. Общий проход по всем
- * переходам приложения — переходы галереи, точек, тоста — остаётся за тикетом
- * про тёмную тему и доступность; добавлять анимацию и откладывать её отмену
- * было бы ровно тем, от чего этот блок и нужен.
- */
-@media (prefers-reduced-motion: reduce) {
-  .skeleton {
-    animation: none;
-  }
 }
 
 /* Фотография в карточке: пропорция та же, что у загруженной */
@@ -1456,7 +1558,7 @@ body {
   min-height: var(--tap-target);
   border-radius: var(--radius-md);
   background-color: var(--color-danger);
-  color: var(--color-surface);
+  color: var(--color-on-fill);
   font-size: var(--text-base);
 }
 
