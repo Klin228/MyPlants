@@ -1020,15 +1020,40 @@ body {
   display: none;
 }
 
-.showcase-photo {
+/*
+ * Место под фотографию — и то, что видно, если её нет.
+ *
+ * Подпись лежит в самой плитке, фотография кладётся поверх и закрывает её
+ * собой. Не загрузилась — осталась подпись. Порядок именно такой, а не через
+ * `alt`: браузеры рисуют текст непогрузившейся картинки кто во что горазд,
+ * вплоть до полного его отсутствия.
+ */
+.showcase-frame {
+  position: relative;
   flex: 0 0 100%;
-  width: 100%;
-  height: auto;
   aspect-ratio: 4 / 3;
+  scroll-snap-align: start;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-surface-empty);
+  overflow: hidden;
+}
+
+.showcase-frame-note {
+  padding: var(--space-lg);
+  font-size: var(--text-sm);
+  color: var(--color-text-subtle);
+  text-align: center;
+}
+
+.showcase-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   display: block;
-  scroll-snap-align: start;
-  background-color: var(--color-surface-empty);
 }
 
 .showcase-body {
@@ -1075,6 +1100,16 @@ body {
   overflow-wrap: anywhere;
 }
 
+.showcase-empty {
+  margin: 0;
+  padding: var(--space-3xl) var(--space-lg);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  text-align: center;
+  font-size: var(--text-md);
+  color: var(--color-text-muted);
+}
+
 .showcase-footer {
   margin-top: var(--space-3xl);
   text-align: center;
@@ -1119,4 +1154,42 @@ body {
   background-color: var(--color-danger);
   color: var(--color-surface);
   font-size: var(--text-base);
+}
+
+/*
+ * ---------- Отдельная страница вместо содержимого ----------
+ *
+ * Ссылки нет, коллекция не собралась, адрес не совпал ни с чем. Один набор
+ * стилей на все три: посетителю разница не важна, ему важно не увидеть белый
+ * экран и понять, что делать дальше.
+ */
+.notice {
+  max-width: 32rem;
+  margin: 0 auto;
+  padding: var(--space-3xl) var(--space-lg);
+  text-align: center;
+}
+
+.notice-title {
+  margin: 0 0 var(--space-lg) 0;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: bold;
+  color: var(--color-text);
+}
+
+.notice-text {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+.notice-action {
+  margin: var(--space-2xl) 0 0 0;
+}
+
+.notice-action a {
+  color: var(--color-accent);
+  font-size: var(--text-md);
 }

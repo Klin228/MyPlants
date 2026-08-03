@@ -14,6 +14,7 @@
 
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { unstable_noStore as noStore } from 'next/cache'
 import { ImageResponse } from 'next/og'
 import { sql } from '@/lib/server/db'
 import { speciesKey } from '@/lib/species'
@@ -97,6 +98,20 @@ interface PosterData {
 }
 
 async function load(id: string): Promise<PosterData | null> {
+  try {
+    return await query(id)
+  } catch (cause) {
+    // Сбой базы здесь не должен оборачиваться пятисоткой — краулер мессенджера
+    // на неё ответит отсутствием превью и запомнит это на дни. Нейтральный
+    // холст лучше, но кешировать его нельзя: минутный сбой иначе оставит
+    // живую коллекцию без картинки на час.
+    console.error(`Не удалось собрать превью коллекции ${id}:`, cause)
+    noStore()
+    return null
+  }
+}
+
+async function query(id: string): Promise<PosterData | null> {
   const db = sql()
 
   const rows = (await db`

@@ -12,7 +12,7 @@
  */
 
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
+import { unstable_noStore as noStore } from 'next/cache'
 import { sql } from '@/lib/server/db'
 import { formatCalendarDate } from '@/lib/dates'
 import { speciesKey } from '@/lib/species'
@@ -65,39 +65,64 @@ function blobBaseUrl(): string | null {
   return /^[a-z0-9]+$/.test(host) ? `https://${host}.public.blob.vercel-storage.com` : null
 }
 
-async function loadCollection(id: string) {
-  const db = sql()
+/**
+ * Три исхода, а не два.
+ *
+ * «Коллекции нет» и «не смогли её прочитать» — разные вещи, и посетителю их
+ * надо говорить по-разному: в первом случае возвращаться незачем, во втором
+ * стоит зайти через минуту. Раньше сбой базы просто выбрасывался наружу и
+ * превращался в пятисотку с пустым телом.
+ */
+type LoadResult =
+  | { status: 'ok'; collection: CollectionRow; plants: PlantRow[] }
+  | { status: 'missing' }
+  | { status: 'failed' }
 
-  const collections = (await db`
-    select id, title, total_price, allow_indexing, revoked_at
-    from collections
-    where id = ${id}
-  `) as CollectionRow[]
+async function loadCollection(id: string): Promise<LoadResult> {
+  try {
+    const db = sql()
 
-  const collection = collections[0]
-  if (!collection || collection.revoked_at) return null
+    const collections = (await db`
+      select id, title, total_price, allow_indexing, revoked_at
+      from collections
+      where id = ${id}
+    `) as CollectionRow[]
 
-  // acquired_on запрашивается текстом намеренно. Драйвер превращает колонку
-  // date в объект Date, и календарная дата тут же становится меткой времени:
-  // `String(date).slice(0, 10)` даёт «Tue Jan 10», а часовой пояс сервера
-  // начинает влиять на то, какое число увидит читатель.
-  const plants = (await db`
-    select name, species, price,
-           to_char(acquired_on, 'YYYY-MM-DD') as acquired_on,
-           source, notes, photos
-    from collection_plants
-    where collection_id = ${id}
-    order by position
-  `) as unknown as PlantRow[]
+    const collection = collections[0]
+    if (!collection || collection.revoked_at) return { status: 'missing' }
 
-  return { collection, plants }
+    // acquired_on запрашивается текстом намеренно. Драйвер превращает колонку
+    // date в объект Date, и календарная дата тут же становится меткой времени:
+    // `String(date).slice(0, 10)` даёт «Tue Jan 10», а часовой пояс сервера
+    // начинает влиять на то, какое число увидит читатель.
+    const plants = (await db`
+      select name, species, price,
+             to_char(acquired_on, 'YYYY-MM-DD') as acquired_on,
+             source, notes, photos
+      from collection_plants
+      where collection_id = ${id}
+      order by position
+    `) as unknown as PlantRow[]
+
+    return { status: 'ok', collection, plants }
+  } catch (cause) {
+    // В журнал сервера ошибка попадает целиком, посетителю не показывается
+    // ничего: в сообщении драйвера базы вполне может оказаться адрес
+    // подключения.
+    console.error(`Не удалось прочитать коллекцию ${id}:`, cause)
+    return { status: 'failed' }
+  }
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const data = await loadCollection(params.id)
 
-  if (!data) {
+  if (data.status === 'missing') {
     return { title: 'Collection not found', robots: { index: false, follow: false } }
+  }
+
+  if (data.status === 'failed') {
+    return { title: 'Collection unavailable', robots: { index: false, follow: false } }
   }
 
   const { collection, plants } = data
@@ -124,10 +149,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function CollectionPage({ params }: PageProps) {
   const data = await loadCollection(params.id)
 
-  // Отозванная коллекция отвечает так же, как несуществующая: подтверждать,
-  // что по этому адресу когда-то что-то было, незачем. Человеческий вид этих
-  // состояний — тикет C8.
-  if (!data) notFound()
+  if (data.status === 'missing') return <Missing />
+
+  if (data.status === 'failed') {
+    // Обязательно до возврата: без этого неудачная отрисовка попадёт в кеш
+    // маршрута на тот же час, что и удачная, и секундный сбой базы превратится
+    // в час нерабочей ссылки. `noStore` помечает конкретно эту отрисовку
+    // динамической, кеширование остальных не трогая.
+    noStore()
+    return <Unavailable id={params.id} />
+  }
 
   const { collection, plants } = data
   const base = blobBaseUrl()
@@ -144,51 +175,163 @@ export default async function CollectionPage({ params }: PageProps) {
         )}
       </header>
 
-      <div className="showcase-grid">
-        {plants.map((plant, index) => (
-          <article className="showcase-card" key={index}>
-            {base && plant.photos.length > 0 && (
-              <div className="showcase-strip">
-                {plant.photos.map((photo, photoIndex) => (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    key={photo.path}
-                    className="showcase-photo"
-                    src={`${base}/${photo.path}`}
-                    width={photo.width}
-                    height={photo.height}
-                    // Жадно грузится ровно одна картинка — первая у первой
-                    // карточки. Остальные либо ниже по странице, либо правее в
-                    // ленте, и до них ещё надо долистать. Размеры проставлены
-                    // атрибутами, так что место зарезервировано и ничего не
-                    // прыгает при подгрузке.
-                    loading={index === 0 && photoIndex === 0 ? 'eager' : 'lazy'}
-                    decoding="async"
-                    alt={plant.name}
-                  />
-                ))}
+      {plants.length === 0 ? (
+        // Опубликовать пустую коллекцию нельзя — маршрут требует хотя бы одно
+        // растение с фотографией. Но «нельзя» держится на проверке в одном
+        // месте, а витрина без этой ветки показала бы голый заголовок и ничего
+        // больше, и понять из неё что-либо было бы невозможно.
+        <p className="showcase-empty">There is nothing in this collection yet.</p>
+      ) : (
+        <div className="showcase-grid">
+          {plants.map((plant, index) => (
+            <article className="showcase-card" key={index}>
+              <Photos base={base} plant={plant} eager={index === 0} />
+
+              <div className="showcase-body">
+                <h2 className="showcase-name">{plant.name}</h2>
+                {plant.species && <p className="showcase-species">{plant.species}</p>}
+
+                {plant.price !== null && (
+                  <p className="showcase-price">${Number(plant.price).toFixed(2)}</p>
+                )}
+
+                <Provenance acquiredOn={plant.acquired_on} source={plant.source} />
+
+                {plant.notes && <p className="showcase-notes">{plant.notes}</p>}
               </div>
-            )}
-
-            <div className="showcase-body">
-              <h2 className="showcase-name">{plant.name}</h2>
-              {plant.species && <p className="showcase-species">{plant.species}</p>}
-
-              {plant.price !== null && (
-                <p className="showcase-price">${Number(plant.price).toFixed(2)}</p>
-              )}
-
-              <Provenance acquiredOn={plant.acquired_on} source={plant.source} />
-
-              {plant.notes && <p className="showcase-notes">{plant.notes}</p>}
-            </div>
-          </article>
-        ))}
-      </div>
+            </article>
+          ))}
+        </div>
+      )}
 
       <footer className="showcase-footer">
         <a href="/">Made with MyPlants — build your own collection</a>
       </footer>
+    </div>
+  )
+}
+
+/**
+ * По этому адресу коллекции нет.
+ *
+ * Несуществующая ссылка и отозванная коллекция выглядят одинаково намеренно:
+ * «здесь что-то было, но его убрали» — уже сведение о чужой коллекции, и
+ * сообщать его тому, у кого доступа нет, незачем.
+ *
+ * Отрисовывается прямо в странице, а не через `notFound()`. Причина неприятная
+ * и её стоит знать: в Next 14 содержимое `not-found.tsx` **не попадает в
+ * серверный HTML** — оно уезжает в скрипт гидратации и появляется только после
+ * запуска JavaScript. Проверено на пустых пробных маршрутах: и с
+ * `not-found.tsx` в самом сегменте, и с корневым тело ответа остаётся пустым.
+ * То есть штатный путь давал ровно то, что этот тикет должен убрать, — белый
+ * экран у человека, открывшего чужую ссылку.
+ *
+ * Цена решения: ответ 200 вместо 404. Разобрано в `DECISIONS.md`, запись 9.
+ */
+function Missing() {
+  return (
+    <main className="notice">
+      <h1 className="notice-title">This collection is not here</h1>
+      <p className="notice-text">
+        The address may be mistyped, or the person who shared it may have taken the link down. A
+        published collection stays available until its owner removes it.
+      </p>
+      <p className="notice-action">
+        <a href="/">Build your own collection with MyPlants</a>
+      </p>
+    </main>
+  )
+}
+
+/**
+ * Коллекция есть, но прочитать её не вышло.
+ *
+ * Отличается от «здесь ничего нет» тем, что советует вернуться: ссылка живая,
+ * это у нас временно не получилось. «Try again» — обычная ссылка на тот же
+ * адрес, потому что перезагрузка страницы не должна зависеть от JavaScript.
+ */
+function Unavailable({ id }: { id: string }) {
+  return (
+    <main className="notice">
+      <h1 className="notice-title">This collection could not be loaded</h1>
+      <p className="notice-text">
+        Something went wrong on our side — the link itself is fine. Try again in a moment.
+      </p>
+      <p className="notice-action">
+        <a href={`/c/${encodeURIComponent(id)}`}>Try again</a>
+      </p>
+    </main>
+  )
+}
+
+/**
+ * Лента фотографий одного растения — и то, что показывается вместо неё.
+ *
+ * Фотографии могут не приехать двумя разными способами, и оба должны выглядеть
+ * осмысленно, а не превращать карточку в пустое место.
+ *
+ * Первый: адрес хранилища не удалось определить, то есть сломана настройка на
+ * нашей стороне. Раньше полоса просто не отрисовывалась, и коллекция целиком
+ * выглядела как собрание безымянных подписей — по такой странице невозможно
+ * догадаться, что что-то не так.
+ *
+ * Второй: адрес есть, а конкретный файл не отдаётся.
+ *
+ * Оба закрываются одним и тем же: под каждой фотографией лежит плитка с
+ * подписью, а сама фотография кладётся поверх и закрывает её собой. Не
+ * загрузилась — видно подпись. Скрипт для этого не нужен, что здесь важно:
+ * страницу открывают по чужой ссылке в чужом браузере.
+ *
+ * Первая версия полагалась на то, что браузер сам нарисует `alt` на месте
+ * непогрузившейся картинки. В жизни это выглядело по-разному даже у соседних
+ * карточек одной страницы: где-то подпись прижата к верхнему краю пустого
+ * прямоугольника рядом со значком битой ссылки, где-то её нет совсем.
+ *
+ * Отсюда же `alt=""`: название растения стоит текстом прямо под плиткой, и
+ * повторять его для читалки экрана незачем — картинка здесь оформительская.
+ *
+ * Мелкий значок непогрузившейся картинки в углу плитки при этом остаётся:
+ * его рисует сам браузер, и убрать его без скрипта нельзя — проверено на
+ * `alt=""`, на отсутствии `alt` и на обнулённом размере шрифта. Рядом с
+ * подписью он читается как то, чем и является.
+ */
+function Photos({ base, plant, eager }: { base: string | null; plant: PlantRow; eager: boolean }) {
+  if (!base || plant.photos.length === 0) {
+    return (
+      <div className="showcase-strip">
+        <Frame />
+      </div>
+    )
+  }
+
+  return (
+    <div className="showcase-strip">
+      {plant.photos.map((photo, photoIndex) => (
+        <Frame key={photo.path}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            className="showcase-photo"
+            src={`${base}/${photo.path}`}
+            width={photo.width}
+            height={photo.height}
+            // Жадно грузится ровно одна картинка — первая у первой карточки.
+            // Остальные либо ниже по странице, либо правее в ленте, и до них
+            // ещё надо долистать.
+            loading={eager && photoIndex === 0 ? 'eager' : 'lazy'}
+            decoding="async"
+            alt=""
+          />
+        </Frame>
+      ))}
+    </div>
+  )
+}
+
+function Frame({ children }: { children?: React.ReactNode }) {
+  return (
+    <div className="showcase-frame">
+      <span className="showcase-frame-note">Photo unavailable</span>
+      {children}
     </div>
   )
 }
