@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Search, Filter, Plus, Share2 } from 'lucide-react'
 import PlantCard from '@/components/PlantCard'
 import ShareDialog from '@/components/ShareDialog'
+import StorageWarning from '@/components/StorageWarning'
 import Toast from '@/components/Toast'
 import { plantsRepository } from '@/lib/repositories/plantsRepository'
 import { initializeDatabase } from '@/lib/repositories/migration'
@@ -165,6 +166,13 @@ export default function Home() {
 
   return (
     <main className="page">
+      {/*
+        Предупреждение о хранилище стоит первым и выше шапки намеренно: узнать,
+        что данные здесь не сохранятся, надо до того, как их начали вводить, а
+        не после. Само оно решает, показываться ли вообще.
+      */}
+      <StorageWarning />
+
       {/*
         Шапка повторяет витрину: заголовок, сводка, стоимость. Прокручивается
         вместе с содержимым, а не прилипает: на телефоне липкая шапка навсегда
