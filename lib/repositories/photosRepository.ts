@@ -253,6 +253,109 @@ export async function getPhotoById(photoKey: string): Promise<string> {
 }
 
 /**
+ * Ключи всех фотографий и их вес — без расшифровки и без чтения байтов.
+ *
+ * `blob.size` это метаданные: значение из IndexedDB приезжает ссылкой на файл, а
+ * не содержимым, поэтому перебрать так можно и сотню снимков по восемь мегабайт.
+ * Нужно разовому уменьшению (`lib/shrinkPhotos.ts`), чтобы понять, есть ли что
+ * уменьшать, не заставляя человека ждать.
+ */
+export async function listPhotos(): Promise<{ key: string; bytes: number }[]> {
+  const db = await initDB()
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([STORES.PHOTOS], 'readonly')
+    const request = transaction.objectStore(STORES.PHOTOS).openCursor()
+    const entries: { key: string; bytes: number }[] = []
+
+    request.onsuccess = () => {
+      const cursor = request.result
+      if (!cursor) return
+
+      const blob = cursor.value as Blob | undefined
+      if (blob) entries.push({ key: String(cursor.key), bytes: blob.size })
+      cursor.continue()
+    }
+
+    transaction.oncomplete = () => resolve(entries)
+    transaction.onabort = () => {
+      console.error('Error listing photos:', transaction.error)
+      reject(transaction.error)
+    }
+  })
+}
+
+/**
+ * Только записанные размеры, без обмера отсутствующих.
+ *
+ * Отличается от `getSizes` именно этим: там отсутствующие обмеряются
+ * расшифровкой, а здесь вызывающий сам решает, что делать с пробелами. Разовому
+ * уменьшению это нужно, потому что оно всё равно расшифровывает блоб и обмерить
+ * может заодно.
+ */
+export async function getStoredSizes(keys: string[]): Promise<Record<string, PhotoSize>> {
+  if (keys.length === 0) return {}
+
+  const db = await initDB()
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([STORES.PHOTO_SIZES], 'readonly')
+    const store = transaction.objectStore(STORES.PHOTO_SIZES)
+    const found: Record<string, PhotoSize> = {}
+
+    for (const key of [...new Set(keys)]) {
+      const request = store.get(key)
+      request.onsuccess = () => {
+        const size = request.result as PhotoSize | undefined
+        if (size && size.width > 0 && size.height > 0) found[key] = size
+      }
+    }
+
+    transaction.oncomplete = () => resolve(found)
+    transaction.onabort = () => reject(transaction.error)
+  })
+}
+
+/**
+ * Запомнить размеры фотографии, не трогая сам блоб.
+ */
+export async function rememberSize(key: string, size: PhotoSize): Promise<void> {
+  const db = await initDB()
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([STORES.PHOTO_SIZES], 'readwrite')
+    transaction.objectStore(STORES.PHOTO_SIZES).put(size, key)
+
+    transaction.oncomplete = () => resolve()
+    transaction.onabort = () => reject(transaction.error)
+  })
+}
+
+/**
+ * Заменить фотографию под тем же ключом — блоб и его размеры одной транзакцией.
+ *
+ * Одним `put`, а не «удалить и записать»: ни в один момент ключ не остаётся без
+ * блоба, поэтому прерывание не может потерять фотографию. Размеры пишутся здесь
+ * же — после уменьшения они другие, а из них берётся форма карточки (X5), и
+ * разойтись им нельзя.
+ */
+export async function replacePhoto(key: string, blob: Blob, size: PhotoSize): Promise<void> {
+  const db = await initDB()
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([STORES.PHOTOS, STORES.PHOTO_SIZES], 'readwrite')
+    transaction.objectStore(STORES.PHOTOS).put(blob, key)
+    transaction.objectStore(STORES.PHOTO_SIZES).put(size, key)
+
+    transaction.oncomplete = () => resolve()
+    transaction.onabort = () => {
+      console.error('Error replacing photo:', transaction.error)
+      reject(transaction.error ?? new Error('Could not replace the photo'))
+    }
+  })
+}
+
+/**
  * Получить сырой блоб. Нужен для выгрузки и будущей отправки на сервер —
  * там object URL бесполезен.
  */
@@ -265,6 +368,10 @@ export const photosRepository = {
   restorePhoto,
   getByPlantId,
   getSizes,
+  getStoredSizes,
+  listPhotos,
+  rememberSize,
+  replacePhoto,
   revokeUrls,
   addPhoto,
   deletePhoto,

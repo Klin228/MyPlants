@@ -20,9 +20,10 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { Download, HardDrive, Link2, Upload, X } from 'lucide-react'
+import { Download, HardDrive, Link2, Minimize2, Upload, X } from 'lucide-react'
 import { track } from '@/lib/analytics'
 import { createBackup, restoreBackup } from '@/lib/backup'
+import { inspectPhotos, shrinkStoredPhotos, type PhotoStorageStats } from '@/lib/shrinkPhotos'
 import {
   previewPublication,
   restoreFromPublication,
@@ -66,6 +67,15 @@ export default function StorageStatus({ onRestored }: StorageStatusProps) {
   const [busy, setBusy] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
 
+  /**
+   * Что лежит в базе из фотографий — чтобы решить, предлагать ли уменьшение.
+   *
+   * Считается по весу блобов без расшифровки, поэтому проверку можно звать при
+   * открытии экрана: чтение значения из IndexedDB отдаёт ссылку на файл, а не
+   * байты. Тикет X4.
+   */
+  const [photoStats, setPhotoStats] = useState<PhotoStorageStats | null>(null)
+
   /** Восстановление по ссылке: поле раскрыто, что в нём, и что нашлось. */
   const [linkOpen, setLinkOpen] = useState(false)
   const [link, setLink] = useState('')
@@ -89,6 +99,13 @@ export default function StorageStatus({ onRestored }: StorageStatusProps) {
       if (cancelled) return
       setState({ usage, persisted, platform, offerInstall })
     })
+
+    // Отдельным обещанием: своя ошибка здесь не должна лишить блок остального
+    inspectPhotos()
+      .then((stats) => {
+        if (!cancelled) setPhotoStats(stats)
+      })
+      .catch((error) => console.warn('Не удалось осмотреть фотографии:', error))
 
     setHintDismissed(localStorage.getItem(HINT_DISMISSED_KEY) === '1')
 
@@ -122,6 +139,53 @@ export default function StorageStatus({ onRestored }: StorageStatusProps) {
   }
 
   const showHint = state.offerInstall && !hintDismissed
+
+  /*
+   * Уменьшение предлагается, только когда есть похожее на неуменьшенное.
+   *
+   * Кнопка «на всякий случай» здесь была бы вредна: это перезапись данных
+   * пользователя, и предлагать её тому, у кого всё уже сжато, значит предлагать
+   * бессмысленный риск.
+   */
+  const offerShrink = (photoStats?.heavy ?? 0) > 0
+
+  const shrink = async () => {
+    setBusy(true)
+    setBackup('Looking at the photos…')
+
+    try {
+      const result = await shrinkStoredPhotos(({ done, total }) =>
+        setBackup(`Shrinking photos: ${done} of ${total}…`)
+      )
+
+      const saved = result.bytesBefore - result.bytesAfter
+      const parts = [
+        result.shrunk > 0
+          ? `Shrunk ${result.shrunk} ${result.shrunk === 1 ? 'photo' : 'photos'} and freed ${formatBytes(saved)}`
+          : 'Nothing needed shrinking',
+      ]
+      if (result.kept > 0) parts.push(`${result.kept} already small enough`)
+      if (result.failed > 0) {
+        parts.push(
+          `${result.failed} could not be read and ${result.failed === 1 ? 'was' : 'were'} left untouched`
+        )
+      }
+      setBackup(`${parts.join('. ')}.`)
+
+      // Блок о хранилище и предложение считаются заново: числа изменились
+      setPhotoStats(await inspectPhotos())
+      const usage = await storageUsage()
+      setState((current) => (current ? { ...current, usage } : current))
+
+      // Фотографии переписаны, а на экране висят указатели на прежние блобы
+      if (result.shrunk > 0) onRestored()
+    } catch (error) {
+      console.error('Не удалось уменьшить фотографии:', error)
+      setBackup(error instanceof Error ? error.message : 'Could not shrink the photos')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const save = async () => {
     setBusy(true)
@@ -249,6 +313,18 @@ export default function StorageStatus({ onRestored }: StorageStatusProps) {
       </p>
 
       <div className="storage-actions">
+        {/*
+          Уменьшение стоит первым и называет выигрыш числом: «освободить 38 МБ»
+          понятнее, чем «оптимизировать фотографии». Кнопка появляется только
+          когда есть что уменьшать — см. `offerShrink`.
+        */}
+        {offerShrink && photoStats && (
+          <button type="button" onClick={shrink} className="btn btn--quiet" disabled={busy}>
+            <Minimize2 size={16} aria-hidden="true" />
+            Shrink {photoStats.heavy} {photoStats.heavy === 1 ? 'photo' : 'photos'} (
+            {formatBytes(photoStats.bytes)} now)
+          </button>
+        )}
         <button type="button" onClick={save} className="btn btn--quiet" disabled={busy}>
           <Download size={16} aria-hidden="true" />
           Save a backup
