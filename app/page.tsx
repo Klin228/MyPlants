@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Search, Filter, Plus, Share2 } from 'lucide-react'
 import PlantCard from '@/components/PlantCard'
 import ShareDialog from '@/components/ShareDialog'
+import StorageStatus from '@/components/StorageStatus'
 import StorageWarning from '@/components/StorageWarning'
 import Toast from '@/components/Toast'
 import { plantsRepository } from '@/lib/repositories/plantsRepository'
@@ -291,6 +292,13 @@ export default function Home() {
               ))}
             </div>
           )}
+
+          {/*
+            Справка о хранилище — только когда коллекция есть. Пустому экрану
+            рассказывать про сохранность нечего: терять пока нечего, а первый
+            призыв должен быть один.
+          */}
+          <StorageStatus />
         </>
       )}
 

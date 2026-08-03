@@ -7,7 +7,18 @@ import AddPlantForm from '@/components/AddPlantForm'
 import Toast from '@/components/Toast'
 import { plantsRepository } from '@/lib/repositories/plantsRepository'
 import { initializeDatabase } from '@/lib/repositories/migration'
+import { requestPersistentStorage } from '@/lib/environment'
 import type { NewPlant, Plant } from '@/lib/models/plant'
+
+/**
+ * Отметка о том, что постоянное хранилище уже просили.
+ *
+ * Нужна из-за Firefox: он единственный показывает пользователю вопрос, и
+ * спрашивать его повторно на каждое добавленное растение было бы навязчиво.
+ * Отметка в `localStorage` — если её сотрут вместе с коллекцией, спросить
+ * заново будет как раз уместно.
+ */
+const PERSIST_ASKED_KEY = 'myplants-persist-requested'
 
 export default function NewPlantPage() {
   const router = useRouter()
@@ -45,7 +56,23 @@ export default function NewPlantPage() {
       
       // Update local state
       setPlants([...plants, newPlant])
-      
+
+      /*
+       * Просим браузер не вытеснять данные — ровно здесь, а не при загрузке
+       * страницы. По умолчанию хранилище считается «лучшим усилием», и Safari
+       * стирает его через семь дней использования браузера без захода на сайт.
+       *
+       * Момент выбран не случайно: у человека только что появилось, что терять,
+       * и взаимодействие с сайтом состоялось — Safari и Chrome решают по нему
+       * молча, а Firefox покажет вопрос, и на фоне только что добавленного
+       * растения он выглядит уместно.
+       */
+      if (plants.length === 0 && localStorage.getItem(PERSIST_ASKED_KEY) === null) {
+        localStorage.setItem(PERSIST_ASKED_KEY, '1')
+        const persisted = await requestPersistentStorage()
+        console.log(`Постоянное хранилище: ${persisted === null ? 'браузер не умеет' : persisted}`)
+      }
+
       // Show success toast
       setToastMessage(`Plant '${newPlant.name}' added successfully`)
       

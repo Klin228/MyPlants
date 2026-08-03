@@ -1032,6 +1032,71 @@ body {
   transition: opacity 0.2s;
 }
 
+/* ---------- Справка о хранилище ---------- */
+
+/*
+ * Тихий блок под сеткой. Намеренно не выглядит предупреждением: рамка мягкая,
+ * цвет текста приглушённый. Предупреждение — это `.warning` выше, и путать их
+ * нельзя, иначе срочное перестанет читаться как срочное.
+ */
+.storage {
+  margin-top: var(--space-2xl);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-border-soft);
+}
+
+.storage-line {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--color-text-subtle);
+}
+
+.storage-icon {
+  flex-shrink: 0;
+  /* Выравнивание по первой строке текста, а не по центру блока */
+  margin-top: 0.15em;
+}
+
+.storage-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+}
+
+.storage-hint-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.storage-hint-title {
+  margin: 0 0 var(--space-xs) 0;
+  font-size: var(--text-md);
+  font-weight: bold;
+  color: var(--color-text);
+}
+
+.storage-hint-text {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.storage-hint-dismiss {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+}
+
 /* ---------- Предупреждение о хранилище ---------- */
 
 /*

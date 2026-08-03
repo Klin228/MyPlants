@@ -150,3 +150,89 @@ export function chromeIntentUrl(url: string): string | null {
     return null
   }
 }
+
+/**
+ * Попросить браузер не вытеснять наши данные.
+ *
+ * Зачем: по умолчанию хранилище считается «лучшим усилием» — браузер вправе
+ * стереть его при нехватке места, а Safari стирает всё скриптовое хранилище
+ * через семь дней использования браузера без захода на сайт.
+ *
+ * Как это встречают браузеры, а это важно для места вызова:
+ *
+ * - **Safari** решает сам, по истории взаимодействия, ничего не спрашивая;
+ * - **Chrome** — по своей эвристике вовлечённости, тоже молча;
+ * - **Firefox** показывает пользователю вопрос.
+ *
+ * Из-за Firefox нельзя дёргать это на каждой загрузке: человек получит окно
+ * с вопросом ни с того ни с сего. Отсюда вызов ровно в момент добавления
+ * первого растения — взаимодействие уже состоялось, просьба выглядит уместной,
+ * а вероятность одобрения выше — и отметка о попытке, чтобы не спрашивать
+ * дважды.
+ *
+ * @returns стало ли хранилище постоянным, либо null — браузер не умеет
+ */
+export async function requestPersistentStorage(): Promise<boolean | null> {
+  if (typeof navigator === 'undefined' || !navigator.storage?.persist) return null
+
+  try {
+    // Уже постоянное — второй раз не просим, чтобы не звать окно в Firefox
+    if (navigator.storage.persisted && (await navigator.storage.persisted())) return true
+
+    return await navigator.storage.persist()
+  } catch {
+    return null
+  }
+}
+
+/** Помечено ли хранилище постоянным. `null` — браузер не отвечает. */
+export async function isStoragePersisted(): Promise<boolean | null> {
+  if (typeof navigator === 'undefined' || !navigator.storage?.persisted) return null
+
+  try {
+    return await navigator.storage.persisted()
+  } catch {
+    return null
+  }
+}
+
+export interface StorageUsage {
+  used: number
+  quota: number
+}
+
+/**
+ * Сколько занято и сколько всего доступно.
+ *
+ * Число приблизительное по замыслу браузера: он округляет его, чтобы по
+ * точному размеру нельзя было опознать посетителя. Для «сколько я уже
+ * набрал и сколько влезет» этого достаточно.
+ */
+export async function storageUsage(): Promise<StorageUsage | null> {
+  if (typeof navigator === 'undefined' || !navigator.storage?.estimate) return null
+
+  try {
+    const { usage, quota } = await navigator.storage.estimate()
+    if (typeof usage !== 'number' || typeof quota !== 'number') return null
+    return { used: usage, quota }
+  } catch {
+    return null
+  }
+}
+
+/** Размер человеку: мегабайты до десятых, гигабайты до десятых. */
+export function formatBytes(bytes: number): string {
+  const mb = bytes / (1024 * 1024)
+  if (mb < 0.1) return 'less than 0.1 MB'
+  if (mb < 1024) return `${mb.toFixed(1)} MB`
+  return `${(mb / 1024).toFixed(1)} GB`
+}
+
+/** Платформа — только чтобы дать верную подсказку об установке. */
+export type Platform = 'ios' | 'android' | 'other'
+
+export function detectPlatform(userAgent: string): Platform {
+  if (/iPhone|iPad|iPod/.test(userAgent)) return 'ios'
+  if (userAgent.includes('Android')) return 'android'
+  return 'other'
+}
