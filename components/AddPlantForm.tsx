@@ -108,6 +108,16 @@ export default function AddPlantForm({
 
   // Pre-fill form when editing
   useEffect(() => {
+    /*
+     * Флаг отмены обязателен, и сначала его здесь не было — независимое ревью
+     * (F3) поймало утечку. Чтение блобов из базы занимает заметное время; если
+     * человек за это время ушёл с экрана, `then` всё равно звал `rememberUrl`,
+     * добавляя указатели в набор, который cleanup уже прошёл и очистил.
+     * Освобождать их становилось некому — ровно то, от чего защищаются
+     * `PhotoGallery` и `FullscreenPhotoViewer`.
+     */
+    let cancelled = false
+
     if (initialPlant) {
       setName(initialPlant.name)
       setSpecies(initialPlant.species || '')
@@ -121,6 +131,12 @@ export default function AddPlantForm({
         setLoadingExisting(initialPlant.photos.length)
         photosRepository.getByPlantId(initialPlant.photos)
           .then(urls => {
+            // Экран уже покинут: указатели созданы, показывать их некому —
+            // освобождаем сразу, иначе они не достанутся никому.
+            if (cancelled) {
+              photosRepository.revokeUrls(urls)
+              return
+            }
             setPhotoPreviews(urls.map((url, index) => ({
               url: rememberUrl(url),
               key: initialPlant.photos[index]
@@ -128,9 +144,11 @@ export default function AddPlantForm({
           })
           .catch(error => {
             console.error('Error loading photo previews:', error)
-            setPhotoPreviews([])
+            if (!cancelled) setPhotoPreviews([])
           })
-          .finally(() => setLoadingExisting(0))
+          .finally(() => {
+            if (!cancelled) setLoadingExisting(0)
+          })
       } else {
         setPhotoPreviews([])
         setLoadingExisting(0)
@@ -144,6 +162,10 @@ export default function AddPlantForm({
       setAcquiredOn('')
       setSource('')
       setNotes('')
+    }
+
+    return () => {
+      cancelled = true
     }
   }, [initialPlant])
 
@@ -283,9 +305,17 @@ export default function AddPlantForm({
       return
     }
 
+    /*
+     * Ноль допустим, и это не смягчение проверки.
+     *
+     * Восстановление из публикации без цен ставит `price: 0` осознанно, а
+     * главный экран прямо утверждает, что коллекция с незаполненными ценами
+     * даёт законный ноль. С прежним условием `<= 0` такое растение нельзя было
+     * даже переименовать, не выдумав цену. Поймано независимым ревью (F3).
+     */
     const parsedPrice = parseFloat(price)
-    if (isNaN(parsedPrice) || parsedPrice <= 0) {
-      alert('Please enter a valid price (greater than 0)')
+    if (isNaN(parsedPrice) || parsedPrice < 0) {
+      alert('Please enter a price (0 or more)')
       return
     }
 

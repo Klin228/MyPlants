@@ -1652,7 +1652,11 @@ body {
 .showcase-frame {
   position: relative;
   flex: 0 0 100%;
-  aspect-ratio: 4 / 3;
+  /* Тот же токен, что у карточки. Раньше здесь было 4 / 3 числом, и
+     `DECISIONS.md` при этом утверждал, что пропорция общая — ревью F3 поймало.
+     Из-за этого X5 сдвинул бы карточку и не сдвинул витрину, то есть дал бы
+     ровно то расхождение кропа, ради предотвращения которого токен и заведён. */
+  aspect-ratio: var(--photo-ratio);
   scroll-snap-align: start;
   display: flex;
   align-items: center;

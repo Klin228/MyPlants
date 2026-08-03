@@ -40,6 +40,20 @@ export default function FullscreenPhotoViewer({
     pinchDistance: 0
   })
   const dragRef = useRef({ x: 0, y: 0 })
+  /**
+   * Режим жеста хранится в ref, состояние — только для отрисовки.
+   *
+   * Правило записано в `CLAUDE.md` по итогам D2, но сюда не было применено, и
+   * независимое ревью (F3) это поймало: файл назван образцом правила, которому
+   * не подчиняется. Аналогия в правиле верна лишь наполовину — сдвиг ленты
+   * действительно жил в `dragRef`, а режим нет.
+   *
+   * Здесь это не косметика. `touchstart` на увеличенном фото ставит `pan`, но
+   * если React не успел перерисоваться, `touchmove` видит прежний `idle` и
+   * объявляет жест свайпом или закрытием вместо панорамирования — то есть
+   * увеличенное фото вместо перетаскивания начинает листаться.
+   */
+  const modeRef = useRef<Mode>('idle')
   const imageRef = useRef<HTMLImageElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -113,6 +127,11 @@ export default function FullscreenPhotoViewer({
     setDrag(value)
   }
 
+  const setModeValue = (value: Mode) => {
+    modeRef.current = value
+    setMode(value)
+  }
+
   const onTouchStart = (e: React.TouchEvent) => {
     const g = gesture.current
 
@@ -120,7 +139,7 @@ export default function FullscreenPhotoViewer({
       g.pinchDistance = distanceBetween(e.touches)
       g.startScale = scale
       g.startPan = pan
-      setMode('pinch')
+      setModeValue('pinch')
       return
     }
 
@@ -130,7 +149,7 @@ export default function FullscreenPhotoViewer({
       g.startY = touch.clientY
       g.startTime = Date.now()
       g.startPan = pan
-      setMode(scale > 1 ? 'pan' : 'idle')
+      setModeValue(scale > 1 ? 'pan' : 'idle')
     }
   }
 
@@ -152,19 +171,19 @@ export default function FullscreenPhotoViewer({
     const dy = touch.clientY - g.startY
 
     // Панорамирование увеличенного фото
-    if (mode === 'pan') {
+    if (modeRef.current === 'pan') {
       setPan(clampPan({ x: g.startPan.x + dx, y: g.startPan.y + dy }, scale))
       return
     }
 
     // Ось ещё не выбрана
-    if (mode === 'idle') {
+    if (modeRef.current === 'idle') {
       if (Math.abs(dx) < TAP_SLOP && Math.abs(dy) < TAP_SLOP) return
-      setMode(Math.abs(dx) > Math.abs(dy) ? 'swipe' : 'close')
+      setModeValue(Math.abs(dx) > Math.abs(dy) ? 'swipe' : 'close')
       return
     }
 
-    if (mode === 'swipe') {
+    if (modeRef.current === 'swipe') {
       let offset = dx
       const atStart = activeIndex === 0 && dx > 0
       const atEnd = activeIndex === photoUrls.length - 1 && dx < 0
@@ -174,7 +193,7 @@ export default function FullscreenPhotoViewer({
     }
 
     // Потянули вниз — закрыть
-    if (mode === 'close') {
+    if (modeRef.current === 'close') {
       setDragValue({ x: 0, y: dy })
     }
   }
@@ -183,7 +202,7 @@ export default function FullscreenPhotoViewer({
     const g = gesture.current
 
     // Убрали один палец из щипка — не оставляем состояние в подвешенном виде
-    if (mode === 'pinch') {
+    if (modeRef.current === 'pinch') {
       g.pinchDistance = 0
       if (e.touches.length === 1) {
         const touch = e.touches[0]
@@ -191,28 +210,28 @@ export default function FullscreenPhotoViewer({
         g.startY = touch.clientY
         g.startTime = Date.now()
         g.startPan = pan
-        setMode(scale > 1 ? 'pan' : 'idle')
+        setModeValue(scale > 1 ? 'pan' : 'idle')
       } else {
         if (scale <= 1.02) {
           setScale(1)
           setPan({ x: 0, y: 0 })
         }
-        setMode('idle')
+        setModeValue('idle')
       }
       return
     }
 
-    if (mode === 'pan') {
-      setMode('idle')
+    if (modeRef.current === 'pan') {
+      setModeValue('idle')
       return
     }
 
     const { x: dx, y: dy } = dragRef.current
     const elapsed = Date.now() - g.startTime
-    const currentMode = mode
+    const currentMode = modeRef.current
 
     setDragValue({ x: 0, y: 0 })
-    setMode('idle')
+    setModeValue('idle')
 
     // Тап по фону при обычном масштабе закрывает
     if (currentMode === 'idle' && elapsed < 400) {

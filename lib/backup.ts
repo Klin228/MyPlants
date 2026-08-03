@@ -173,6 +173,21 @@ export async function restoreBackup(file: Blob): Promise<RestoreResult> {
     const plant = validatePlant(raw)
     if (!plant) continue
 
+    /*
+     * Проверяем, что растения ещё нет, ДО записи фотографий.
+     *
+     * Сначала было наоборот, и независимое ревью (F3) это поймало: повторная
+     * загрузка той же копии записывала все блобы заново, а растение
+     * пропускала — блобы оставались осиротевшими, счётчик показывал
+     * «Restored 0 plants with 24 photos», и в «photos missing for…» попадали
+     * растения, которые вообще не восстанавливались. Ту же ошибку я уже
+     * исправлял в `restoreFromPublication.ts`, а здесь она осталась.
+     */
+    if (await plantsRepository.getById(plant.id)) {
+      result.skipped += 1
+      continue
+    }
+
     // Фотографии пишутся до растения: если запись растения не удастся, в базе
     // останутся осиротевшие блобы — неприятно, но безобидно. Обратный порядок
     // дал бы растение со ссылками в пустоту, то есть видимую поломку.
@@ -187,8 +202,7 @@ export async function restoreBackup(file: Blob): Promise<RestoreResult> {
 
     if (written.length < plant.photos.length) result.missingPhotos.push(plant.name)
 
-    const stored = await plantsRepository.restore({ ...plant, photos: written })
-    if (stored) result.added += 1
+    if (await plantsRepository.restore({ ...plant, photos: written })) result.added += 1
     else result.skipped += 1
   }
 

@@ -72,6 +72,14 @@ export async function POST(request: Request): Promise<NextResponse> {
   // превью живёт по своему адресу и требует отдельного вызова.
   revalidatePath(`/c/${collectionId}`)
   revalidatePath(`/c/${collectionId}/opengraph-image`)
+  /*
+   * И маршрут, который отдаёт коллекцию как JSON для восстановления. Он тоже
+   * кешируется, и без этой строки после отзыва он ещё до десяти минут отдавал
+   * всё текстовое содержимое снимка — включая цены и заметки, если владелец их
+   * публиковал. Найдено независимым ревью (F3); проверка в E4 это пропустила,
+   * потому что там отзывалась коллекция, чей JSON в кеш ещё не попадал.
+   */
+  revalidatePath(`/api/collections/${collectionId}`)
 
   return NextResponse.json({ revoked: true, deletedFiles })
 }
