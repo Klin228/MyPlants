@@ -52,16 +52,46 @@ export function initDB(): Promise<IDBDatabase> {
       reject(request.error)
     }
 
+    /*
+     * Другая вкладка держит соединение и не даёт поднять версию.
+     *
+     * Без этого обработчика запрос просто висит: ни `onsuccess`, ни `onerror` не
+     * приходят, и всё приложение молча ждёт вечно. Обработчик ниже
+     * (`onversionchange`) закрывает соединение с той стороны, так что до этого
+     * сообщения дело доходит редко — но «редко» и «никогда» это разные вещи, а
+     * висящий без объяснений экран хуже понятной просьбы. Найдено ревью F3.
+     */
+    request.onblocked = () => {
+      console.error('Обновление базы заблокировано другой вкладкой')
+      dbState.initPromise = null
+      reject(new Error('The app is open in another tab. Close it and reload this page.'))
+    }
+
     request.onsuccess = () => {
       const db = request.result
       dbState.db = db
-      
+
       // Handle database close event
       db.onclose = () => {
         dbState.db = null
         dbState.initPromise = null
       }
-      
+
+      /*
+       * Другая вкладка обновляет схему — освобождаем ей дорогу.
+       *
+       * Не закрыть соединение здесь значит заблокировать ту вкладку: она получит
+       * `onblocked` и не сможет открыть базу, пока эту не закроют руками.
+       * Состояние сбрасывается, поэтому следующий вызов `initDB` откроет
+       * соединение заново — уже с новой схемой.
+       */
+      db.onversionchange = () => {
+        console.warn('База обновляется в другой вкладке, закрываем соединение')
+        db.close()
+        dbState.db = null
+        dbState.initPromise = null
+      }
+
       // Handle database errors
       db.onerror = (event) => {
         console.error('IndexedDB error:', event)
@@ -84,6 +114,14 @@ export function initDB(): Promise<IDBDatabase> {
         }
       } catch (error) {
         console.error('Error creating database schema:', error)
+        /*
+         * Сбросить `initPromise` здесь так же обязательно, как в `onerror`, и
+         * сначала этого не было: отказ запоминался навсегда, и каждый
+         * следующий вызов `initDB` получал тот же отвергнутый промис — до
+         * перезагрузки вкладки приложение оставалось без базы, даже если
+         * причина была разовой. Найдено ревью F3.
+         */
+        dbState.initPromise = null
         reject(error)
       }
     }

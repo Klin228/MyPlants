@@ -46,6 +46,15 @@ export interface BackupResult {
   filename: string
   plants: number
   photos: number
+  /**
+   * Названия растений, чьи фотографии в копию не попали.
+   *
+   * Раньше их не было, и выгрузка молчала: блоб не прочитался, ключ вычеркнулся,
+   * а человек видел «Saved 12 plants and 28 photos» и не знал, что фотографий
+   * должно было быть 34. Восстановление про пропавшие сообщает — выгрузка,
+   * которая знает то же самое, обязана тоже. Найдено ревью F3.
+   */
+  missingPhotos: string[]
 }
 
 /**
@@ -65,10 +74,12 @@ export async function createBackup(now: Date): Promise<BackupResult> {
 
   const files: { name: string; data: Uint8Array }[] = []
   const exported: Plant[] = []
+  const missingPhotos: string[] = []
   let photoCount = 0
 
   for (const plant of plants) {
     const keys: string[] = []
+    const wanted = plant.photos?.length ?? 0
 
     for (const key of plant.photos ?? []) {
       try {
@@ -81,6 +92,8 @@ export async function createBackup(now: Date): Promise<BackupResult> {
         console.warn(`Фотография ${key} недоступна, в копию не попадёт:`, error)
       }
     }
+
+    if (keys.length < wanted) missingPhotos.push(plant.name)
 
     exported.push({ ...plant, photos: keys })
   }
@@ -107,6 +120,7 @@ export async function createBackup(now: Date): Promise<BackupResult> {
     filename: `myplants-backup-${now.toISOString().slice(0, 10)}.zip`,
     plants: exported.length,
     photos: photoCount,
+    missingPhotos,
   }
 }
 

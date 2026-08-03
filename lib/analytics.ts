@@ -43,8 +43,14 @@ export type AnalyticsEvent =
   | { name: 'collection_from_referral' }
   /** Масштаб проблемы из E1. Имя приложения — из известного списка. */
   | { name: 'inapp_browser_detected'; app: string }
-  | { name: 'a2hs_prompt_shown'; platform: 'ios' | 'android' }
-  | { name: 'a2hs_confirmed'; platform: 'ios' | 'android' }
+  /**
+   * `other` — не заглушка, а настоящий случай: установленное на настольном
+   * браузере приложение. Подсказку на нём не показывают, а вот подтверждение
+   * установки приходит, и раньше оно уезжало как `android` — грязь в отчёте на
+   * ровном месте. Найдено ревью F3.
+   */
+  | { name: 'a2hs_prompt_shown'; platform: 'ios' | 'android' | 'other' }
+  | { name: 'a2hs_confirmed'; platform: 'ios' | 'android' | 'other' }
   /** Каким путём восстанавливались и получилось ли. */
   | { name: 'restore_attempted'; source: 'file' | 'publication'; ok: boolean }
 
@@ -58,6 +64,9 @@ export type AnalyticsEvent =
 const ALLOWED_STRINGS = new Set([
   'ios',
   'android',
+  // Настольный браузер. Без него `other` заменялся бы на `unknown` молча —
+  // правило «новое строковое свойство сначала в белый список» ровно об этом.
+  'other',
   'file',
   'publication',
   'unknown',

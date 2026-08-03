@@ -243,6 +243,19 @@ export function readZip(bytes: Uint8Array): ZipEntry[] {
   let cursor = centralStart
 
   for (let i = 0; i < count; i++) {
+    /*
+     * Хватает ли места под запись каталога — проверяется до чтения.
+     *
+     * `DataView` на попытку прочитать за концом буфера бросает `RangeError`, и
+     * человек видел именно его текст: «Offset is outside the bounds of the
+     * DataView». Числа в архиве недоверенные — и число записей, и смещения, —
+     * поэтому проверять их приходится самим. Данным при этом ничего не грозило,
+     * речь только о внятности сообщения. Найдено ревью F3.
+     */
+    if (cursor + 46 > bytes.length) {
+      throw new Error('The archive is damaged: the directory ends too early')
+    }
+
     if (view.getUint32(cursor, true) !== CENTRAL_HEADER) {
       throw new Error('The archive is damaged: unexpected directory entry')
     }
@@ -262,6 +275,9 @@ export function readZip(bytes: Uint8Array): ZipEntry[] {
 
     // Данные лежат за локальным заголовком, и длина имени с дополнительным
     // полем там своя — брать её из каталога нельзя.
+    if (localOffset + 30 > bytes.length) {
+      throw new Error(`The archive is damaged: bad offset for ${name}`)
+    }
     if (view.getUint32(localOffset, true) !== LOCAL_HEADER) {
       throw new Error(`The archive is damaged: no header for ${name}`)
     }

@@ -19,7 +19,16 @@ import { buildSpeciesSuggestions, looksLikeBinomial, normalizeSpeciesInput } fro
 import { todayAsDateInput } from '@/lib/dates'
 
 interface AddPlantFormProps {
-  onAddPlant: (plant: NewPlant) => void
+  /**
+   * Может вернуть промис — и тогда форма его дождётся.
+   *
+   * Раньше тип был `void`, вызов шёл без `await`, и `setIsSubmitting(false)`
+   * срабатывал до конца записи в базу: кнопка разблокировалась сразу, а два
+   * быстрых нажатия давали две копии фотографий. Оба обработчика в приложении
+   * асинхронные, то есть промис возвращали всегда — терялся он здесь. Найдено
+   * ревью F3.
+   */
+  onAddPlant: (plant: NewPlant) => void | Promise<void>
   onCancel: () => void
   initialPlant?: Plant | null
   /**
@@ -60,6 +69,17 @@ export default function AddPlantForm({
   const [source, setSource] = useState('')
   const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  /**
+   * Тот же признак в ref — по нему и принимается решение.
+   *
+   * `setIsSubmitting(true)` перерисовывает форму не сразу, а `if (isSubmitting)`
+   * читает значение из замыкания текущего рендера. Два нажатия в одном кадре
+   * оба видят `false` и оба пишут — то есть `await` ниже закрывает окно только
+   * после первой перерисовки, а до неё дверь остаётся открытой. Правило
+   * «решения по ref, отрисовка по состоянию» записано в `CLAUDE.md` про жесты,
+   * и причина здесь ровно та же.
+   */
+  const submittingRef = useRef(false)
   /** Сколько фотографий сейчас уменьшается. Снимок на 8 МБ это не мгновенно. */
   const [processing, setProcessing] = useState(0)
   /**
@@ -313,7 +333,7 @@ export default function AddPlantForm({
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     
-    if (isSubmitting) return
+    if (submittingRef.current) return
 
     /*
      * Пока фотографии уменьшаются, их ещё нет в `photoPreviews`. Без этой
@@ -357,6 +377,7 @@ export default function AddPlantForm({
       return
     }
 
+    submittingRef.current = true
     setIsSubmitting(true)
 
     try {
@@ -377,7 +398,7 @@ export default function AddPlantForm({
       }
 
       // Call the parent handler with photo keys
-      onAddPlant({
+      await onAddPlant({
         name: name.trim(),
         species: normalizeSpeciesInput(species) || undefined,
         photos: photoKeys,
@@ -405,6 +426,7 @@ export default function AddPlantForm({
       console.error('Error submitting form:', error)
       alert('Error saving plant. Please try again.')
     } finally {
+      submittingRef.current = false
       setIsSubmitting(false)
     }
   }

@@ -137,7 +137,17 @@ export async function restore(plant: Plant): Promise<boolean> {
 
 /**
  * Update an existing plant
- * 
+ *
+ * Чтение и запись — **одной транзакцией**. Раньше их было две: `getById`
+ * отдельным вызовом, потом `put` в новой транзакции. В промежутке запись могла
+ * измениться, и правка возвращала её обратно: удалил растение в одной вкладке,
+ * сохранил открытую форму в другой — и растение воскресало, только фотографии
+ * его к тому моменту уже удалены вместе с ним, то есть возвращалось оно со
+ * ссылками в пустоту. Найдено ревью F3.
+ *
+ * `put` вызывается из обработчика успеха чтения: транзакция в этот момент ещё
+ * активна, поэтому оба запроса попадают в неё, а не в разные.
+ *
  * @param id - The plant ID to update
  * @param data - Updated plant data (id will be preserved from the id parameter)
  * @returns Promise that resolves to the updated plant
@@ -145,32 +155,44 @@ export async function restore(plant: Plant): Promise<boolean> {
 export async function update(id: string, data: Partial<NewPlant>): Promise<Plant> {
   const db = await initDB()
 
-  // First, get the existing plant
-  const existingPlant = await getById(id)
-  if (!existingPlant) {
-    throw new Error(`Plant with id ${id} not found`)
-  }
-
-  const updatedPlant: Plant = {
-    ...existingPlant,
-    ...data,
-    id, // Ensure id is preserved
-    // createdAt берётся из существующей записи спредом выше и правке не подлежит
-    updatedAt: new Date().toISOString()
-  }
-  
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([STORES.PLANTS], 'readwrite')
     const store = transaction.objectStore(STORES.PLANTS)
-    const request = store.put(updatedPlant)
-    
-    request.onsuccess = () => {
-      resolve(updatedPlant)
+    const read = store.get(id)
+
+    read.onerror = () => {
+      console.error('Error reading plant before update:', read.error)
+      reject(read.error)
     }
-    
-    request.onerror = () => {
-      console.error('Error updating plant:', request.error)
-      reject(request.error)
+
+    read.onsuccess = () => {
+      const existingPlant = read.result as Plant | undefined
+
+      if (!existingPlant) {
+        // Растения нет — писать нечего, и транзакцию доводить незачем
+        transaction.abort()
+        reject(new Error(`Plant with id ${id} not found`))
+        return
+      }
+
+      const updatedPlant: Plant = {
+        ...existingPlant,
+        ...data,
+        id, // Ensure id is preserved
+        // createdAt берётся из существующей записи спредом выше и правке не подлежит
+        updatedAt: new Date().toISOString()
+      }
+
+      const write = store.put(updatedPlant)
+
+      write.onsuccess = () => {
+        resolve(updatedPlant)
+      }
+
+      write.onerror = () => {
+        console.error('Error updating plant:', write.error)
+        reject(write.error)
+      }
     }
   })
 }

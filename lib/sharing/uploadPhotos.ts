@@ -141,10 +141,28 @@ export async function uploadDraftPhotos(
     ...(draft.allowIndexing ? { allowIndexing: true } : {}),
     plants: draft.plants.map((plant): SnapshotPlant => {
       const { photoKeys, ...rest } = plant
-      const photos: SnapshotPhoto[] = photoKeys.map((key) => {
+
+      /*
+       * Одинаковое содержимое у одного растения уезжает один раз.
+       *
+       * Путь считается из содержимого, поэтому одна и та же фотография,
+       * добавленная в форме дважды, давала два разных ключа и один путь. Витрина
+       * рисует галерею с `key={photo.path}` — два одинаковых ключа подряд, и React
+       * ругается, а вторая точка листания ведёт в ту же картинку. Найдено ревью F3.
+       *
+       * Отбрасывать здесь, а не в форме, — сознательно: локально это выбор
+       * человека, обе плитки видны и любую можно убрать, а вот витрина обещает
+       * галерею разных снимков.
+       */
+      const photos: SnapshotPhoto[] = []
+      const seen = new Set<string>()
+
+      for (const key of photoKeys) {
         const photo = prepared.get(key)!
-        return { path: photo.path, width: photo.width, height: photo.height }
-      })
+        if (seen.has(photo.path)) continue
+        seen.add(photo.path)
+        photos.push({ path: photo.path, width: photo.width, height: photo.height })
+      }
 
       return { ...rest, photos }
     }),

@@ -311,7 +311,14 @@ function Photos({ base, plant, eager }: { base: string | null; plant: PlantRow; 
   return (
     <div className="showcase-strip">
       {plant.photos.map((photo, photoIndex) => (
-        <Frame key={photo.path}>
+        /*
+         * Ключ с номером, а не один путь: путь это хеш содержимого, и одна и та
+         * же фотография у одного растения давала два одинаковых ключа. Публикация
+         * теперь такие отбрасывает (`uploadPhotos.ts`), но уже опубликованные
+         * снимки живут в базе годами и переписывать их мы не станем — витрина
+         * обязана рисовать и их. Найдено ревью F3.
+         */
+        <Frame key={`${photo.path}-${photoIndex}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             className="showcase-photo"

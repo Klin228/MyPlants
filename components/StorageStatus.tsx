@@ -100,12 +100,12 @@ export default function StorageStatus({ onRestored }: StorageStatusProps) {
      */
     if (isStandalone() && localStorage.getItem(INSTALLED_KEY) === null) {
       localStorage.setItem(INSTALLED_KEY, '1')
-      track({ name: 'a2hs_confirmed', platform: platform === 'ios' ? 'ios' : 'android' })
+      track({ name: 'a2hs_confirmed', platform })
     }
 
     // Подсказку показали — знаменатель для предыдущего события
     if (offerInstall && localStorage.getItem(HINT_DISMISSED_KEY) !== '1') {
-      track({ name: 'a2hs_prompt_shown', platform: platform === 'ios' ? 'ios' : 'android' })
+      track({ name: 'a2hs_prompt_shown', platform })
     }
 
     return () => {
@@ -127,7 +127,7 @@ export default function StorageStatus({ onRestored }: StorageStatusProps) {
     setBusy(true)
     setBackup('Preparing the backup…')
     try {
-      const { blob, filename, plants, photos } = await createBackup(new Date())
+      const { blob, filename, plants, photos, missingPhotos } = await createBackup(new Date())
 
       /*
        * Скачивание через object URL и невидимую ссылку — единственный способ
@@ -141,7 +141,15 @@ export default function StorageStatus({ onRestored }: StorageStatusProps) {
       link.click()
       URL.revokeObjectURL(url)
 
-      setBackup(`Saved ${plants} ${plants === 1 ? 'plant' : 'plants'} and ${photos} ${photos === 1 ? 'photo' : 'photos'} to ${filename}`)
+      // О неполной копии говорится вслух — так же, как о неполном
+      // восстановлении ниже. Молчаливая копия хуже отсутствующей: на неё
+      // рассчитывают.
+      const saved = `Saved ${plants} ${plants === 1 ? 'plant' : 'plants'} and ${photos} ${photos === 1 ? 'photo' : 'photos'} to ${filename}`
+      setBackup(
+        missingPhotos.length > 0
+          ? `${saved}. Photos could not be read for: ${missingPhotos.join(', ')} — those are not in the file.`
+          : saved
+      )
     } catch (error) {
       console.error('Не удалось собрать резервную копию:', error)
       setBackup(error instanceof Error ? error.message : 'Could not save the backup')
