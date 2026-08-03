@@ -731,10 +731,6 @@ body {
   font-weight: 500;
 }
 
-.loading-text {
-  color: var(--color-text-muted);
-}
-
 /* ---------- Галерея в карточке ---------- */
 
 /*
@@ -938,6 +934,81 @@ body {
   box-shadow: var(--shadow-toast);
   z-index: 10000;
   animation: slideUp 0.3s ease-out;
+}
+
+/* ---------- Скелетоны ---------- */
+
+/*
+ * Заполнитель на месте того, что ещё грузится.
+ *
+ * Смысл не в красоте, а в размере: скелетон занимает ровно то место, которое
+ * займёт содержимое, поэтому вёрстка не прыгает в момент подстановки. Текст
+ * «Loading photos...» этого не давал — надпись и фотография разной высоты.
+ *
+ * Пульсация, а не бегущий блик: блик требует градиента во всю ширину и на
+ * длинном списке карточек это десятки одновременных анимаций фона.
+ */
+.skeleton {
+  background-color: var(--color-surface-empty);
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+/*
+ * Анимация здесь новая, поэтому и отключение здесь же. Общий проход по всем
+ * переходам приложения — переходы галереи, точек, тоста — остаётся за тикетом
+ * про тёмную тему и доступность; добавлять анимацию и откладывать её отмену
+ * было бы ровно тем, от чего этот блок и нужен.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* Фотография в карточке: пропорция та же, что у загруженной */
+.gallery-skeleton {
+  width: 100%;
+  aspect-ratio: var(--photo-ratio);
+}
+
+/* Плитка превью в форме */
+.photo-thumb--skeleton {
+  border-color: var(--color-border-soft);
+}
+
+/* Поля формы, пока читается растение из базы */
+.form-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  padding: var(--space-lg);
+}
+
+.form-skeleton-line {
+  height: var(--tap-target);
+  border-radius: var(--radius-md);
+}
+
+.form-skeleton-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.form-skeleton-line--label {
+  width: 40%;
+  height: var(--text-base);
+  border-radius: var(--radius-xs);
+}
+
+.form-skeleton-photo {
+  aspect-ratio: var(--photo-ratio);
+  border-radius: var(--radius-md);
 }
 
 @keyframes slideUp {

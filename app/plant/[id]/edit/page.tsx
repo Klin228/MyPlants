@@ -85,14 +85,6 @@ export default function EditPlantPage() {
     .map(p => p.species)
     .filter((species): species is string => Boolean(species))
 
-  if (!plant) {
-    return (
-      <div className="screen-centered">
-        <p className="loading-text">Loading...</p>
-      </div>
-    )
-  }
-
   return (
     <div className="screen">
       {/* Fixed Header */}
@@ -103,15 +95,34 @@ export default function EditPlantPage() {
         <h1 className="screen-title">Edit plant</h1>
       </header>
 
-      {/* Scrollable Form */}
-      <div className="screen-body">
-        <AddPlantForm
-          onAddPlant={handleUpdatePlant}
-          onCancel={handleCancel}
-          initialPlant={plant}
-          knownSpecies={knownSpecies}
-        />
-      </div>
+      {/*
+        Пока растение читается из базы, на месте формы стоит скелетон её формы.
+        Шапка при этом уже на экране: раньше загрузка возвращала центрированную
+        надпись ВМЕСТО всего экрана, поэтому вместе с формой рывком въезжала и
+        шапка с кнопкой «назад».
+      */}
+      {!plant ? (
+        <div className="screen-body">
+          <div className="form-skeleton" aria-busy="true" aria-label="Loading plant">
+            <div className="form-skeleton-photo skeleton" />
+            {[0, 1, 2, 3].map((index) => (
+              <div key={index} className="form-skeleton-field">
+                <div className="form-skeleton-line--label skeleton" />
+                <div className="form-skeleton-line skeleton" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="screen-body">
+          <AddPlantForm
+            onAddPlant={handleUpdatePlant}
+            onCancel={handleCancel}
+            initialPlant={plant}
+            knownSpecies={knownSpecies}
+          />
+        </div>
+      )}
 
       {/* Toast Notification */}
       {toastMessage && (

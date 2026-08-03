@@ -224,12 +224,17 @@ export default function PhotoGallery({ photos, alt }: PhotoGalleryProps) {
     }
   }
 
-  if (photos.length === 0 || photoUrls.length === 0) {
-    return (
-      <div className="gallery-empty">
-        {photos.length > 0 && photoUrls.length === 0 ? 'Loading photos...' : 'No photo'}
-      </div>
-    )
+  // Фотографии есть, но ещё читаются из базы: на их месте скелетон той же
+  // пропорции. Надпись «Loading photos...» занимала другую высоту, и вёрстка
+  // прыгала в момент подстановки картинки.
+  if (photos.length > 0 && photoUrls.length === 0) {
+    return <div className="gallery-skeleton skeleton" aria-label="Loading photo" role="img" />
+  }
+
+  // А это не загрузка, а факт: у растения нет ни одной фотографии. Пульсировать
+  // тут нечему — ждать нечего.
+  if (photos.length === 0) {
+    return <div className="gallery-empty">No photo</div>
   }
 
   const isSwiping = mode === 'swipe'

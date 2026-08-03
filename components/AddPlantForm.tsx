@@ -53,6 +53,12 @@ export default function AddPlantForm({
   const [isSubmitting, setIsSubmitting] = useState(false)
   /** Сколько фотографий сейчас уменьшается. Снимок на 8 МБ это не мгновенно. */
   const [processing, setProcessing] = useState(0)
+  /**
+   * Сколько уже сохранённых фотографий читается из базы при открытии
+   * редактирования. Нужно, чтобы показать столько же скелетонов и не дать
+   * сетке превью подпрыгнуть, когда они появятся.
+   */
+  const [loadingExisting, setLoadingExisting] = useState(0)
 
   /**
    * Все object URL, которые создал этот компонент, — и те, что пришли из
@@ -112,6 +118,7 @@ export default function AddPlantForm({
 
       // Load photo previews from repository
       if (initialPlant.photos && initialPlant.photos.length > 0) {
+        setLoadingExisting(initialPlant.photos.length)
         photosRepository.getByPlantId(initialPlant.photos)
           .then(urls => {
             setPhotoPreviews(urls.map((url, index) => ({
@@ -123,8 +130,10 @@ export default function AddPlantForm({
             console.error('Error loading photo previews:', error)
             setPhotoPreviews([])
           })
+          .finally(() => setLoadingExisting(0))
       } else {
         setPhotoPreviews([])
+        setLoadingExisting(0)
       }
     } else {
       // Reset form when not editing
@@ -391,8 +400,17 @@ export default function AddPlantForm({
           </label>
 
           {/* Photo Grid */}
-          {photoPreviews.length > 0 && (
+          {(photoPreviews.length > 0 || processing > 0 || loadingExisting > 0) && (
             <div className="photo-grid">
+              {/*
+                Плитки-скелетоны стоят ровно там, где появятся фотографии:
+                столько же, сколько сейчас читается из базы или уменьшается.
+                Без них сетка подпрыгивала на высоту ряда в момент подстановки.
+              */}
+              {Array.from({ length: loadingExisting + processing }, (_, index) => (
+                <div key={`skeleton-${index}`} className="photo-thumb photo-thumb--skeleton skeleton" />
+              ))}
+
               {photoPreviews.map((photoPreview, index) => (
                 <div key={index} className="photo-thumb">
                   {/*
