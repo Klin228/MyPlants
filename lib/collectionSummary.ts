@@ -24,13 +24,25 @@ export function countSpecies(items: { species?: string | null }[]): number {
 }
 
 /**
- * Собрать сводку. При нуле видов вторая половина опускается целиком, иначе
- * получилось бы «6 plants · 0 species» — строка, которая ничего не сообщает.
+ * Сводка по частям — для мест, где она идёт не строкой, а столбиком.
+ *
+ * Понадобилось плотной шапке главного экрана (тикет G2): там «12 plants» и
+ * «7 species» — две отдельные строки одна под другой. Правила единственного
+ * числа при этом остаются здесь: ровно ради этого модуль и заводился.
+ *
+ * При нуле видов вторая часть не возвращается вовсе — «0 species» ничего не
+ * сообщает.
+ */
+export function collectionLines(plantCount: number, speciesCount: number): string[] {
+  const plants = `${plantCount} ${plantCount === 1 ? 'plant' : 'plants'}`
+  // У «species» нет отдельной формы единственного числа — это не опечатка.
+  return speciesCount === 0 ? [plants] : [plants, `${speciesCount} species`]
+}
+
+/**
+ * Собрать сводку одной строкой. При нуле видов вторая половина опускается
+ * целиком, иначе получилось бы «6 plants · 0 species».
  */
 export function describeCollection(plantCount: number, speciesCount: number): string {
-  const plants = `${plantCount} ${plantCount === 1 ? 'plant' : 'plants'}`
-  if (speciesCount === 0) return plants
-
-  // У «species» нет отдельной формы единственного числа — это не опечатка.
-  return `${plants} · ${speciesCount} species`
+  return collectionLines(plantCount, speciesCount).join(' · ')
 }

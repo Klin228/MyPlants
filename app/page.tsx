@@ -14,7 +14,7 @@ import { photosRepository, type PhotoSize } from '@/lib/repositories/photosRepos
 import { initializeDatabase } from '@/lib/repositories/migration'
 import { frameRatio } from '@/lib/photoRatio'
 import { speciesKey } from '@/lib/species'
-import { countSpecies, describeCollection } from '@/lib/collectionSummary'
+import { collectionLines, countSpecies } from '@/lib/collectionSummary'
 import type { Plant } from '@/lib/models/plant'
 
 /**
@@ -197,7 +197,7 @@ export default function Home() {
    * на поиск даёт отдельная строка под тулбаром.
    */
   const totalPrice = loaded.reduce((sum, plant) => sum + plant.price, 0)
-  const summary = describeCollection(loaded.length, countSpecies(loaded))
+  const summaryLines = collectionLines(loaded.length, countSpecies(loaded))
 
   /**
    * Закрыть список и вернуть фокус на кнопку.
@@ -266,38 +266,46 @@ export default function Home() {
       <StorageWarning />
 
       {/*
-        Шапка повторяет витрину: заголовок, сводка, стоимость. Прокручивается
-        вместе с содержимым, а не прилипает: на телефоне липкая шапка навсегда
-        съела бы около 150 пикселей у того, ради чего экран существует, — у
+        Шапка — плотный столбик строк (тикет G2).
+        
+        Название и сумма тёмные, счёт и виды серые: так задал владелец. Строки
+        идут вплотную, межстрочное меньше кегля — от этого столбик читается как
+        одна плотная фигура, а не как четыре подписи.
+        
+        Прокручивается вместе с содержимым, а не прилипает: на телефоне липкая
+        шапка навсегда съела бы место у того, ради чего экран существует, — у
         фотографий, — а сумма нужна на взгляд, не постоянно. Возврат после
         добавления растения прокручивает страницу в начало, то есть в момент,
-        когда сумма и интересна, шапка на экране гарантированно.
+        когда сумма интересна, шапка на экране гарантированно.
+        
+        При пустой коллекции остаётся одно название. Прежний «Total: $0.00»
+        читался не как «пусто», а как «приложение потеряло данные». Условие по
+        числу растений, а не по сумме: коллекция с незаполненными ценами даёт
+        законный ноль, и его показывать надо.
       */}
       <div className="page-head">
-        <div className="page-header">
-          <h1 className="page-title">MyPlants</h1>
+        <div className="headline">
+          <h1 className="headline-line">MyPlants</h1>
           {hasPlants && (
-            <button
-              onClick={() => setIsShareOpen(true)}
-              className="btn btn--icon-square"
-              aria-label="Share collection"
-            >
-              <Share2 size={20} color="currentColor" />
-            </button>
+            <>
+              <p className="headline-line">${totalPrice.toFixed(2)}</p>
+              {summaryLines.map((line) => (
+                <p key={line} className="headline-line headline-line--quiet">
+                  {line}
+                </p>
+              ))}
+            </>
           )}
         </div>
 
-        {/*
-          При пустой коллекции — только заголовок. Прежний «Total: $0.00»
-          читался не как «пусто», а как «приложение потеряло данные». Условие по
-          числу растений, а не по сумме: коллекция с незаполненными ценами даёт
-          законный ноль, и его показывать надо.
-        */}
         {hasPlants && (
-          <>
-            <p className="page-summary">{summary}</p>
-            <p className="page-total">${totalPrice.toFixed(2)}</p>
-          </>
+          <button
+            onClick={() => setIsShareOpen(true)}
+            className="btn btn--icon-square"
+            aria-label="Share collection"
+          >
+            <Share2 size={20} color="currentColor" />
+          </button>
         )}
       </div>
 
