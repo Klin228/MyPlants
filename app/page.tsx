@@ -17,6 +17,20 @@ import { speciesKey } from '@/lib/species'
 import { countSpecies, describeCollection } from '@/lib/collectionSummary'
 import type { Plant } from '@/lib/models/plant'
 
+/**
+ * Подписи сортировок — один список на выпадающий список и на строку состояния.
+ *
+ * Раньше они были выписаны только в `<option>`, и сказать, какая сортировка
+ * выбрана, было нечем: пришлось бы повторить текст рядом (тикет X2).
+ */
+const SORT_LABELS: Record<SortBy, string> = {
+  name: 'name (A-Z)',
+  price: 'price (high to low)',
+  date: 'date added (newest first)',
+}
+
+type SortBy = 'name' | 'price' | 'date'
+
 export default function Home() {
   const router = useRouter()
   /**
@@ -38,11 +52,21 @@ export default function Home() {
    */
   const [coverSizes, setCoverSizes] = useState<Record<string, PhotoSize>>({})
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortBy, setSortBy] = useState<'name' | 'price' | 'date'>('name')
+  const [sortBy, setSortBy] = useState<SortBy>('name')
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [isShareOpen, setIsShareOpen] = useState(false)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const filterRef = useRef<HTMLDivElement>(null)
+  /**
+   * Кнопка и сам список — чтобы управлять фокусом.
+   *
+   * Открытие переводит фокус в список: иначе клавиатурой до него надо
+   * дотабываться, и «открыл» ничего не даёт. Закрытие по Escape возвращает фокус
+   * на кнопку — стандартное поведение раскрывающегося меню, которого здесь не
+   * было (тикет X2).
+   */
+  const filterButtonRef = useRef<HTMLButtonElement>(null)
+  const sortSelectRef = useRef<HTMLSelectElement>(null)
 
   /**
    * Чтение коллекции вынесено из эффекта: его же вызывает восстановление из
@@ -175,25 +199,60 @@ export default function Home() {
   const totalPrice = loaded.reduce((sum, plant) => sum + plant.price, 0)
   const summary = describeCollection(loaded.length, countSpecies(loaded))
 
+  /**
+   * Закрыть список и вернуть фокус на кнопку.
+   *
+   * Только для тех случаев, когда человек сам закончил с меню: Escape и выбор
+   * сортировки. При нажатии **мимо** фокус возвращать нельзя — он выдернулся бы
+   * из того, куда человек только что нажал.
+   */
+  const closeFilter = useCallback(() => {
+    setIsFilterOpen(false)
+    filterButtonRef.current?.focus()
+  }, [])
+
   // Close filter dropdown when clicking outside
   useEffect(() => {
+    if (!isFilterOpen) return
+
     // Слушаем и мышь, и касание: на телефоне тапом «мимо» дропдаун не
     // закрывался, потому что touchstart не сопровождается mousedown до
     // окончания жеста.
     const handleClickOutside = (event: Event) => {
       if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
+        // Без возврата фокуса — см. `closeFilter`
         setIsFilterOpen(false)
       }
     }
-    if (isFilterOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-      document.addEventListener('touchstart', handleClickOutside)
+
+    /*
+     * Escape закрывает список — этого не было вовсе, и выйти из него с
+     * клавиатуры было нечем (тикет X2).
+     *
+     * Слушатель на документе, а не на контейнере: правило `CLAUDE.md` про
+     * глобальные слушатели говорит о компонентах, которые рендерятся списком, —
+     * там двадцать карточек дают двадцать слушателей. Здесь экран один, слушатель
+     * живёт только пока список открыт, и цель как раз в том, чтобы Escape
+     * работал независимо от того, где сейчас фокус.
+     */
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeFilter()
     }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('touchstart', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+
+    // Фокус — в список: открыть меню и не дать до него дойти с клавиатуры
+    // значило бы открыть его только для мыши
+    sortSelectRef.current?.focus()
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
       document.removeEventListener('touchstart', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [isFilterOpen])
+  }, [isFilterOpen, closeFilter])
 
   const hasPlants = loaded.length > 0
 
@@ -270,9 +329,17 @@ export default function Home() {
             {/* Filter Button */}
             <div style={{ position: 'relative' }} ref={filterRef}>
               <button
+                ref={filterButtonRef}
                 onClick={() => setIsFilterOpen(!isFilterOpen)}
                 className="btn btn--icon-square"
-                aria-label="Filter and sort"
+                /*
+                  Подпись называет текущую сортировку: читалка экрана иначе
+                  сообщает «фильтр и сортировка» и ни слова о том, что выбрано.
+                  Видимая строка под тулбаром говорит то же зрячему.
+                */
+                aria-label={`Filter and sort: ${SORT_LABELS[sortBy]}`}
+                aria-haspopup="true"
+                aria-expanded={isFilterOpen}
               >
                 <Filter size={20} color="currentColor" />
               </button>
@@ -281,16 +348,21 @@ export default function Home() {
               {isFilterOpen && (
                 <div className="dropdown">
                   <select
+                    ref={sortSelectRef}
                     value={sortBy}
                     onChange={(e) => {
-                      setSortBy(e.target.value as 'name' | 'price' | 'date')
-                      setIsFilterOpen(false)
+                      setSortBy(e.target.value as SortBy)
+                      // Выбор сделан — закрываем и возвращаем фокус на кнопку
+                      closeFilter()
                     }}
                     className="select"
+                    aria-label="Sort by"
                   >
-                    <option value="name">Sort by: name (A-Z)</option>
-                    <option value="price">Sort by: price (high to low)</option>
-                    <option value="date">Sort by: date added (newest first)</option>
+                    {(Object.keys(SORT_LABELS) as SortBy[]).map((value) => (
+                      <option key={value} value={value}>
+                        Sort by: {SORT_LABELS[value]}
+                      </option>
+                    ))}
                   </select>
                 </div>
               )}
@@ -298,13 +370,23 @@ export default function Home() {
           </div>
 
           {/*
-            Шапка не реагирует на поиск, а сетка реагирует, и в три колонки
-            факт фильтрации с первого взгляда не читается. Поэтому он сказан
-            словами — и только при непустом запросе.
+            Строка состояния под тулбаром: что нашлось и как отсортировано.
+            
+            Шапка не реагирует на поиск, а сетка реагирует, и в три колонки факт
+            фильтрации с первого взгляда не читается — поэтому он сказан словами.
+            Сортировка сказана здесь же и всегда: иконка на кнопке одинаковая при
+            любой, и после закрытия списка выбранное было не видно вовсе (X2).
+            Две строки вместо одной множили бы шум, поэтому через разделитель.
           */}
-          {query !== '' && sortedPlants.length > 0 && (
+          {sortedPlants.length > 0 && (
             <p className="result-count">
-              {sortedPlants.length} of {loaded.length} {loaded.length === 1 ? 'plant' : 'plants'}
+              {query !== '' && (
+                <>
+                  {sortedPlants.length} of {loaded.length} {loaded.length === 1 ? 'plant' : 'plants'}
+                  {' · '}
+                </>
+              )}
+              Sorted by {SORT_LABELS[sortBy]}
             </p>
           )}
 
