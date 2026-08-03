@@ -55,6 +55,18 @@ interface PhotoGalleryProps {
    * писать незачем — весь жестовый код из D2 и F3 остаётся здесь один.
    */
   fill?: boolean
+  /**
+   * Что делать по тапу вместо открытия полноэкранного просмотра (тикет G4).
+   *
+   * В карточке на главной тап ведёт на экран растения: разглядывают растение
+   * теперь там, и открывать поверх сетки просмотрщик с зумом означало бы два
+   * разных ответа на одно и то же движение. Просмотрщик остаётся, но вызывается
+   * с экрана растения — там `onTap` не передают.
+   *
+   * Свайп по фотографиям в карточке при этом работает как раньше: тап и свайп
+   * различаются по сдвигу и времени, а не по тому, кто их слушает.
+   */
+  onTap?: () => void
 }
 
 /** Пороги те же, что в просмотрщике: один жест не должен вести себя двояко. */
@@ -71,7 +83,7 @@ const FLICK_DISTANCE = 25
  */
 type Mode = 'idle' | 'swipe' | 'scroll'
 
-export default function PhotoGallery({ photos, alt, ratio, fill }: PhotoGalleryProps) {
+export default function PhotoGallery({ photos, alt, ratio, fill, onTap }: PhotoGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0)
   const [photoUrls, setPhotoUrls] = useState<string[]>([])
   const [isFullscreenOpen, setIsFullscreenOpen] = useState(false)
@@ -152,6 +164,18 @@ export default function PhotoGallery({ photos, alt, ratio, fill }: PhotoGalleryP
     setActiveIndex(Math.min(Math.max(index, 0), photoUrls.length - 1))
   }
 
+  /**
+   * Что происходит по тапу — решается в одном месте.
+   *
+   * Тап приходит двумя путями: из `touchend` на пальце и из `click` на мыши.
+   * Развилка «просмотрщик или переход» должна быть одна, иначе два пути однажды
+   * разойдутся — ровно так в D2 разъезжались условия тапа.
+   */
+  const activate = () => {
+    if (onTap) onTap()
+    else setIsFullscreenOpen(true)
+  }
+
   const onTouchStart = (event: React.TouchEvent) => {
     // Второй палец — это щипок или что-то ещё, лента в этом не участвует
     if (event.touches.length !== 1) {
@@ -201,7 +225,7 @@ export default function PhotoGallery({ photos, alt, ratio, fill }: PhotoGalleryP
     if (finishedMode === 'idle') {
       // Ось так и не выбралась, то есть палец почти не двигался. Короткое
       // касание — тап, долгое — удержание, и открывать по нему нечего.
-      if (elapsed < TAP_DURATION) setIsFullscreenOpen(true)
+      if (elapsed < TAP_DURATION) activate()
       return
     }
 
@@ -222,7 +246,7 @@ export default function PhotoGallery({ photos, alt, ratio, fill }: PhotoGalleryP
    */
   const onClick = () => {
     if (Date.now() - lastTouchEnd.current < 500) return
-    setIsFullscreenOpen(true)
+    activate()
   }
 
   /**

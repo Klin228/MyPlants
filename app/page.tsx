@@ -55,6 +55,19 @@ export default function Home() {
   const [sortBy, setSortBy] = useState<SortBy>('name')
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [isShareOpen, setIsShareOpen] = useState(false)
+  /**
+   * Какая карточка держит открытое меню «…» и не задан ли в нём вопрос об
+   * удалении (тикет G4).
+   *
+   * Состояние здесь, а не в карточке, ради одного следствия: открытым может быть
+   * только одно меню, поэтому слушатель Escape существует в единственном
+   * экземпляре. Правило `CLAUDE.md` про глобальные слушатели в списочных
+   * компонентах именно об этом — двадцать карточек не должны давать двадцать
+   * слушателей.
+   */
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const filterRef = useRef<HTMLDivElement>(null)
   /**
@@ -135,6 +148,7 @@ export default function Home() {
    */
   const handleDeletePlant = async (plantIdToDelete: string): Promise<boolean> => {
     const name = (plants ?? []).find(plant => plant.id === plantIdToDelete)?.name
+    setDeletingId(plantIdToDelete)
 
     try {
       // Delete plant (repository handles photo deletion automatically)
@@ -143,11 +157,15 @@ export default function Home() {
       // Update local state
       setPlants((current) => (current ?? []).filter(plant => plant.id !== plantIdToDelete))
       setToastMessage(name ? `${name} deleted` : 'Plant deleted')
+      setOpenMenuId(null)
+      setConfirmingDeleteId(null)
       return true
     } catch (error) {
       console.error('Error deleting plant:', error)
       setToastMessage('Could not delete. Try again.')
       return false
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -159,6 +177,12 @@ export default function Home() {
   // Handle opening the edit plant page
   const handleEditPlant = (plant: Plant) => {
     router.push(`/plant/${plant.id}/edit`)
+  }
+
+  // Тап по карточке — экран растения (тикет G3). Прежде тап открывал
+  // полноэкранный просмотр; он остался, но вызывается уже оттуда.
+  const handleOpenPlant = (plant: Plant) => {
+    router.push(`/plant/${plant.id}`)
   }
 
   // Filter plants by name or species.
@@ -416,7 +440,19 @@ export default function Home() {
                       plant={plant}
                       onDelete={handleDeletePlant}
                       onEdit={handleEditPlant}
+                      onOpen={handleOpenPlant}
                       ratio={ratio}
+                      menuOpen={openMenuId === plant.id}
+                      onMenuToggle={(open) => {
+                        setOpenMenuId(open ? plant.id : null)
+                        // Закрыли меню — вопрос об удалении вместе с ним
+                        if (!open) setConfirmingDeleteId(null)
+                      }}
+                      confirmingDelete={confirmingDeleteId === plant.id}
+                      onConfirmDelete={(confirming) =>
+                        setConfirmingDeleteId(confirming ? plant.id : null)
+                      }
+                      deleting={deletingId === plant.id}
                     />
                   ),
                 }

@@ -494,40 +494,103 @@ body {
  * последний элемент прижимается к низу. Иначе кнопки у соседей стоят на разной
  * высоте и каталог выглядит случайным.
  */
-.card-body {
+/*
+ * Лицо карточки — три вещи: фотография, название, цена (тикет G4).
+ *
+ * Вид, дата, источник и заметки уехали на экран растения, действия — в меню «…».
+ * Причина не в чистоте: в две колонки на телефоне карточке остаётся около 170
+ * пикселей ширины, и прежний ряд кнопок съедал половину. Это отмена решения D4,
+ * записана в `DECISIONS.md`.
+ */
+.card-face {
   display: flex;
-  flex: 1;
-  flex-direction: column;
-  padding: var(--space-lg);
+  align-items: flex-start;
+  gap: var(--space-xs);
+  padding: var(--space-md);
 }
 
 /*
- * Ряд действий в конце карточки.
+ * Название с ценой — одна кнопка на всю свободную ширину.
  *
- * Раньше здесь была одна кнопка «Edit» во всю ширину, а удаление висело
- * 36-пиксельным крестиком поверх фотографии и срабатывало без вопроса. Крестик
- * убран целиком: он был меньше площади касания, стоял в зоне, откуда начинается
- * горизонтальный свайп ленты, и удалял растение вместе с фотографиями за одно
- * случайное нажатие.
- *
- * Своего вертикального отступа у ряда нет — его высота это высота кнопок, то
- * есть ровно `--tap-target`. Поэтому подтверждение, подменяющее ряд, не меняет
- * высоту карточки, а значит и высоту строки сетки.
+ * Кнопка, а не текст: тап по ней открывает растение так же, как тап по
+ * фотографии, и с клавиатуры до неё можно дойти табом. `min-width: 0` — чтобы
+ * длинное название обрезалось, а не растягивало колонку кладки.
  */
-.card-actions {
+.card-open {
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-xs);
-  margin-top: auto;
-  padding-top: var(--space-sm);
-  border-top: 1px solid var(--color-border-soft);
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
 }
 
-.card-actions-question {
-  margin-right: auto;
-  font-size: var(--text-sm);
+.card-title {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 900;
+  line-height: 1.15;
   color: var(--color-text);
+  /* Две строки названия и не больше: третья строка в узкой колонке уже мешает
+     видеть фотографии, а полное название есть на экране растения. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  /*
+   * Перенос разрешён внутри слова, и без этого обрезка врала: «Пилея
+   * пеперомиевидная» — одно длинное слово, переносить его было негде, оно
+   * вылезало за рамку и обрезалось по краю **без троеточия**. Клампу при этом
+   * усекать было нечего: по вертикали строки укладывались в две.
+   */
+  overflow-wrap: anywhere;
+}
+
+.card-price {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+/* Меню «…» — относительный якорь для всплывающего списка */
+.card-menu {
+  position: relative;
+  flex: none;
+}
+
+/*
+ * Всплывающий список действий.
+ *
+ * Прижат к правому краю карточки: у правой колонки сетки места справа нет.
+ * `z-index` выше соседних карточек, иначе список уходит под следующую.
+ */
+.card-menu-popover {
+  position: absolute;
+  top: calc(100% + var(--space-xs));
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-xs);
+  min-width: 9rem;
+  padding: var(--space-xs);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Вопрос об удалении занимает место того же списка, а не раскрывается под ним:
+   выросший блок поднял бы всю колонку кладки. */
+.card-menu-question {
+  margin: 0;
+  padding: var(--space-xs) var(--space-sm) 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
 }
 
 /*
@@ -581,50 +644,21 @@ body {
   cursor: default;
 }
 
-.card-title {
-  margin: 0 0 var(--space-sm) 0;
-  font-family: var(--font-display);
-  font-size: var(--text-lg);
-  font-weight: bold;
-  color: var(--color-text);
-}
-
-/* Вид набирается курсивом — ботаническая конвенция, а не украшение */
-.card-species {
-  margin: 0 0 var(--space-sm) 0;
-  font-size: var(--text-sm);
-  font-style: italic;
-  color: var(--color-text-muted);
-}
-
-.card-price {
-  margin: 0 0 var(--space-md) 0;
-  font-size: var(--text-base);
-  font-weight: 500;
-  color: var(--color-text);
-}
-
-/* Откуда и когда: дата приобретения и источник одной строкой */
-.card-meta {
-  margin: 0 0 var(--space-md) 0;
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
-}
-
-.card-notes {
-  margin-bottom: var(--space-md);
-  padding: var(--space-md);
-  border: 1px solid var(--color-border-soft);
+/*
+ * Маленькая иконочная кнопка — «…» на карточке.
+ *
+ * Площадь касания меньше `--tap-target`, и это осознанно: в узкой колонке
+ * 48 пикселей отняли бы у названия треть строки. Кнопка стоит в углу, где
+ * промахнуться некуда: соседних целей рядом нет, а тап мимо неё попадает по
+ * названию — то есть открывает растение, а не делает ничего разрушительного.
+ */
+.btn--icon-sm {
+  width: 32px;
+  height: 32px;
+  padding: 0;
   border-radius: var(--radius-sm);
-  background-color: var(--color-surface-muted);
-}
-
-.card-notes p {
-  margin: 0;
-  font-size: var(--text-sm);
+  background-color: transparent;
   color: var(--color-text-muted);
-  white-space: pre-wrap;
-  word-break: break-word;
 }
 
 /* ---------- Форма ---------- */
@@ -1870,6 +1904,20 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--card-min)), 1fr));
   gap: var(--space-lg);
+}
+
+/*
+ * На телефоне витрина тоже в две колонки (тикет G4).
+ *
+ * Не для симметрии с главным экраном, а потому что гость приходит смотреть
+ * коллекцию: в одну колонку из сорока растений видно одно. Кладки здесь нет —
+ * страница серверная, мерить ширину нечем, — поэтому строки останутся рваными,
+ * как решено в X5.
+ */
+@media (max-width: 600px) {
+  .showcase-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .showcase-card {
