@@ -83,26 +83,45 @@ class PublishError extends Error {
   }
 }
 
+/**
+ * Завести публикацию.
+ *
+ * **Одной транзакцией, и это не про аккуратность, а про необратимость.**
+ *
+ * Раньше строка коллекции вставлялась отдельно, а растения — следом, по одному
+ * запросу на каждое. Сбой на середине вставки давал клиенту 500, и он **никогда
+ * не узнавал токен отзыва**: токен возвращается только в успешном ответе, а в
+ * базе лежит его хеш. Коллекция при этом уже существовала и была видна по
+ * ссылке. Отозвать её было нечем — навсегда. Единственное необратимое состояние,
+ * которое нашло независимое ревью (F3), отсюда и очередь этого тикета.
+ *
+ * Драйвер Neon ходит по HTTP и интерактивных транзакций не умеет, но умеет
+ * `transaction()`: массив запросов уезжает одним запросом и выполняется внутри
+ * одной транзакции. Все наши запросы известны заранее, так что этого достаточно.
+ */
 async function createCollection(snapshot: CollectionSnapshot) {
   const db = sql()
   const id = newPublicId()
   const revokeToken = newRevokeToken()
+  // Хеш считается до сборки массива: внутри него `await` уже негде.
+  const tokenHash = await sha256Hex(revokeToken)
 
-  await db`
-    insert into collections (
-      id, snapshot_version, title, total_price, allow_indexing, revoke_token_hash
-    )
-    values (
-      ${id},
-      ${snapshot.version},
-      ${snapshot.title ?? null},
-      ${snapshot.totalPrice ?? null},
-      ${snapshot.allowIndexing === true},
-      ${await sha256Hex(revokeToken)}
-    )
-  `
-
-  await insertPlants(id, snapshot)
+  await db.transaction([
+    db`
+      insert into collections (
+        id, snapshot_version, title, total_price, allow_indexing, revoke_token_hash
+      )
+      values (
+        ${id},
+        ${snapshot.version},
+        ${snapshot.title ?? null},
+        ${snapshot.totalPrice ?? null},
+        ${snapshot.allowIndexing === true},
+        ${tokenHash}
+      )
+    `,
+    ...plantInserts(db, id, snapshot),
+  ])
 
   return { id, revokeToken }
 }
@@ -125,30 +144,47 @@ async function updateCollection(id: string, revokeToken: string, snapshot: Colle
     throw new PublishError('Not allowed to update this collection', 403)
   }
 
-  await db`
-    update collections
-    set snapshot_version = ${snapshot.version},
-        title = ${snapshot.title ?? null},
-        total_price = ${snapshot.totalPrice ?? null},
-        allow_indexing = ${snapshot.allowIndexing === true},
-        updated_at = now()
-    where id = ${id}
-  `
-
-  // Растения заменяются целиком: снимок это состояние коллекции на момент
-  // публикации, а не набор правок. Порядок уникален в пределах коллекции,
-  // поэтому старые строки надо убрать до вставки новых.
-  await db`delete from collection_plants where collection_id = ${id}`
-  await insertPlants(id, snapshot)
+  /*
+   * Тоже одной транзакцией. Здесь сбой на середине не создавал неотзываемых
+   * коллекций, но давал читателю по живой ссылке усечённую коллекцию — скажем
+   * «3 plants» при сумме за все сорок, потому что строка `collections` со
+   * стоимостью обновлялась первой. Владелец видел ошибку и не знал, в каком
+   * состоянии осталась его публикация.
+   *
+   * Порядок внутри транзакции важен: сначала обновить коллекцию и убрать старые
+   * растения, потом вставить новые. Уникальность `(collection_id, position)`
+   * иначе не даст вставить строку с уже занятой позицией.
+   */
+  await db.transaction([
+    db`
+      update collections
+      set snapshot_version = ${snapshot.version},
+          title = ${snapshot.title ?? null},
+          total_price = ${snapshot.totalPrice ?? null},
+          allow_indexing = ${snapshot.allowIndexing === true},
+          updated_at = now()
+      where id = ${id}
+    `,
+    // Растения заменяются целиком: снимок это состояние коллекции на момент
+    // публикации, а не набор правок.
+    db`delete from collection_plants where collection_id = ${id}`,
+    ...plantInserts(db, id, snapshot),
+  ])
 
   return { id, revokeToken }
 }
 
-async function insertPlants(collectionId: string, snapshot: CollectionSnapshot) {
-  const db = sql()
-
-  for (const plant of snapshot.plants) {
-    await db`
+/**
+ * Запросы на вставку растений — **не выполненные**, для передачи в транзакцию.
+ *
+ * Раньше эта функция сама их и выполняла, по одному `await` на растение. Теперь
+ * возвращает массив: драйвер отправит его одним запросом внутри транзакции.
+ * `db` передаётся параметром, а не берётся из `sql()` заново, чтобы запросы
+ * принадлежали тому же соединению, что и остальная транзакция.
+ */
+function plantInserts(db: ReturnType<typeof sql>, collectionId: string, snapshot: CollectionSnapshot) {
+  return snapshot.plants.map(
+    (plant) => db`
       insert into collection_plants (
         collection_id, position, name, species, species_key,
         price, acquired_on, source, notes, photos
@@ -166,5 +202,5 @@ async function insertPlants(collectionId: string, snapshot: CollectionSnapshot) 
         ${JSON.stringify(plant.photos)}
       )
     `
-  }
+  )
 }
