@@ -30,6 +30,11 @@ const OPTION_LABELS: [keyof PublishOptions, string][] = [
   ['includeSource', 'Where each plant came from'],
 ]
 
+/** «1 plant» или «5 plants» — единственное место, где это число склоняется. */
+function countPlants(count: number): string {
+  return `${count} ${count === 1 ? 'plant' : 'plants'}`
+}
+
 /**
  * Индексация стоит отдельно от трёх флагов выше и подписана иначе.
  *
@@ -216,11 +221,30 @@ export default function ShareDialog({ plants, onClose }: ShareDialogProps) {
           </>
         ) : (
           <>
+            {/*
+              Число уезжающих растений говорится в обоих случаях.
+              Раньше при повторной публикации оно заменялось на «уже
+              опубликовано» — то есть скрывалось ровно тогда, когда коллекция
+              успела измениться и цифра интереснее всего (тикет X3).
+            */}
             <p className="sheet-text">
               {existing
-                ? 'This collection is already published. Publishing again updates it at the same address.'
-                : `${publishable} ${publishable === 1 ? 'plant' : 'plants'} with photos will be published.`}
+                ? `This collection is already published. Publishing again updates it at the same address: ${countPlants(publishable)} with photos will be published.`
+                : `${countPlants(publishable)} with photos will be published.`}
             </p>
+
+            {/*
+              Что изменилось с прошлого раза. Только когда есть с чем сравнивать
+              и когда число действительно другое: «столько же, сколько было» —
+              шум, а не сообщение.
+            */}
+            {existing?.plants !== undefined && existing.plants !== publishable && (
+              <p className="sheet-note">
+                {existing.plants > publishable
+                  ? `Last time it was ${countPlants(existing.plants)}: ${countPlants(existing.plants - publishable)} will disappear from the page.`
+                  : `Last time it was ${countPlants(existing.plants)}: ${countPlants(publishable - existing.plants)} will be added.`}
+              </p>
+            )}
 
             <div className="field">
               <label className="field-label" htmlFor="share-title">
@@ -269,9 +293,7 @@ export default function ShareDialog({ plants, onClose }: ShareDialogProps) {
             </fieldset>
 
             {withoutPhotos > 0 && (
-              <p className="sheet-note">
-                {withoutPhotos} {withoutPhotos === 1 ? 'plant' : 'plants'} without photos will be left out.
-              </p>
+              <p className="sheet-note">{countPlants(withoutPhotos)} without photos will be left out.</p>
             )}
 
             {progress && (

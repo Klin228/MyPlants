@@ -117,6 +117,8 @@ export async function publishCollection(
       revokeToken,
       publishedAt: new Date().toISOString(),
       options,
+      // Сколько уехало — диалог следующей публикации скажет, что изменилось (X3)
+      plants: draft.plants.length,
       ...(title?.trim() ? { title: title.trim() } : {}),
     }
 
