@@ -66,6 +66,24 @@ export async function resizeToJpeg(
   }
 }
 
+/**
+ * Узнать размеры изображения, ничего не перекодируя.
+ *
+ * Нужно фотографиям, сохранённым до того, как размеры стали записываться рядом с
+ * блобом (тикет X5): форма карточки берётся из пропорции, а у старых записей её
+ * неоткуда взять, кроме самого блоба. Разбор тот же, что у уменьшения, — с учётом
+ * EXIF-поворота, иначе половина снимков с телефона считалась бы горизонтальной.
+ */
+export async function measureImage(source: Blob): Promise<{ width: number; height: number }> {
+  const { image, release } = await decode(source)
+
+  try {
+    return { width: image.width, height: image.height }
+  } finally {
+    release()
+  }
+}
+
 type DecodedImage = CanvasImageSource & { width: number; height: number }
 
 /**

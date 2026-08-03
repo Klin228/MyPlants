@@ -3,13 +3,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search, Filter, Plus, Share2 } from 'lucide-react'
+import CardGrid from '@/components/CardGrid'
 import PlantCard from '@/components/PlantCard'
 import ShareDialog from '@/components/ShareDialog'
 import StorageStatus from '@/components/StorageStatus'
 import StorageWarning from '@/components/StorageWarning'
 import Toast from '@/components/Toast'
 import { plantsRepository } from '@/lib/repositories/plantsRepository'
+import { photosRepository, type PhotoSize } from '@/lib/repositories/photosRepository'
 import { initializeDatabase } from '@/lib/repositories/migration'
+import { frameRatio } from '@/lib/photoRatio'
 import { speciesKey } from '@/lib/species'
 import { countSpecies, describeCollection } from '@/lib/collectionSummary'
 import type { Plant } from '@/lib/models/plant'
@@ -26,6 +29,14 @@ export default function Home() {
    * ветка «ещё не читали» нужна здесь и сейчас.
    */
   const [plants, setPlants] = useState<Plant[] | null>(null)
+  /**
+   * Размеры обложек — по ключу первой фотографии каждого растения (тикет X5).
+   *
+   * Читаются здесь, а не в карточке: из этих же чисел кладка предсказывает высоту
+   * карточки, то есть они нужны родителю раньше, чем ребёнку. Одно чтение на всю
+   * коллекцию вместо чтения на карточку.
+   */
+  const [coverSizes, setCoverSizes] = useState<Record<string, PhotoSize>>({})
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'name' | 'price' | 'date'>('name')
   const [isFilterOpen, setIsFilterOpen] = useState(false)
@@ -46,6 +57,22 @@ export default function Home() {
       // Load plants from repository
       const loadedPlants = await plantsRepository.getAll()
       setPlants(loadedPlants)
+
+      /*
+       * Размеры обложек догружаются отдельно и после списка.
+       *
+       * Не в одном `await` с растениями: у фотографий, сохранённых до версии 3
+       * базы, размеров нет и они обмеряются расшифровкой блоба — на сорока
+       * растениях это заметное время, и держать из-за него весь экран пустым
+       * незачем. До ответа карточки берут пропорцию по умолчанию.
+       */
+      const covers = loadedPlants
+        .map((plant) => plant.photos?.[0])
+        .filter((key): key is string => Boolean(key))
+
+      if (covers.length > 0) {
+        setCoverSizes(await photosRepository.getSizes(covers))
+      }
     } catch (error) {
       console.error('Error loading plants:', error)
       setPlants([])
@@ -286,16 +313,25 @@ export default function Home() {
               <p>No plants found matching &quot;{searchQuery}&quot;</p>
             </div>
           ) : (
-            <div className="plant-grid">
-              {sortedPlants.map((plant) => (
-                <PlantCard
-                  key={plant.id}
-                  plant={plant}
-                  onDelete={handleDeletePlant}
-                  onEdit={handleEditPlant}
-                />
-              ))}
-            </div>
+            <CardGrid
+              items={sortedPlants.map((plant) => {
+                const cover = plant.photos?.[0]
+                const ratio = frameRatio(cover ? coverSizes[cover] : null)
+
+                return {
+                  key: plant.id,
+                  ratio,
+                  node: (
+                    <PlantCard
+                      plant={plant}
+                      onDelete={handleDeletePlant}
+                      onEdit={handleEditPlant}
+                      ratio={ratio}
+                    />
+                  ),
+                }
+              })}
+            />
           )}
 
         </>

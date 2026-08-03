@@ -51,6 +51,12 @@ interface PhotoPreview {
   url: string
   /** Уже уменьшенный блоб — только у новых фотографий, ждёт записи в базу. */
   blob?: Blob
+  /**
+   * Размеры уменьшенного блоба. `resizeToJpeg` их и так возвращает, а карточке
+   * они нужны, чтобы взять форму рамки у фотографии (тикет X5): без записи рядом
+   * с блобом их пришлось бы добывать обратной расшифровкой при первом показе.
+   */
+  size?: { width: number; height: number }
   /** Ключ в IndexedDB — только у фотографий, которые там уже лежат. */
   key?: string
 }
@@ -295,7 +301,11 @@ export default function AddPlantForm({
         results.forEach((result, index) => {
           if (result.status === 'fulfilled') {
             const url = URL.createObjectURL(result.value.blob)
-            added.push({ url: rememberUrl(url), blob: result.value.blob })
+            added.push({
+              url: rememberUrl(url),
+              blob: result.value.blob,
+              size: { width: result.value.width, height: result.value.height },
+            })
           } else {
             failed += 1
             console.error(`Photo ${index + 1} failed:`, result.reason)
@@ -382,17 +392,17 @@ export default function AddPlantForm({
 
     try {
       // Separate new photos from existing ones (by key)
-      const newBlobs = photoPreviews.filter(p => p.blob).map(p => p.blob!)
+      const fresh = photoPreviews.filter(p => p.blob)
       const existingKeys = photoPreviews.filter(p => p.key).map(p => p.key!)
 
       // Save new photos to repository. Блобы уже уменьшены при выборе файла.
       let photoKeys: string[] = [...existingKeys]
-      if (newBlobs.length > 0) {
+      if (fresh.length > 0) {
         // For new photos, we need a plantId - use a temporary one for now
         // The actual plantId will be set when the plant is created
         const tempPlantId = 'temp'
         const newKeys = await Promise.all(
-          newBlobs.map(blob => photosRepository.addPhoto(tempPlantId, blob))
+          fresh.map(photo => photosRepository.addPhoto(tempPlantId, photo.blob!, photo.size))
         )
         photoKeys = [...existingKeys, ...newKeys]
       }

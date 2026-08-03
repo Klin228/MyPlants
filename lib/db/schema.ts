@@ -13,15 +13,25 @@ export const DB_NAME = 'plant-collection-db'
  * Версия 2 добавила растениям createdAt и updatedAt. Схема при этом не
  * поменялась — сторы и ключи те же, — но существующим записям надо проставить
  * даты, а это делается в обработчике обновления.
+ *
+ * Версия 3 добавила стор с размерами фотографий: карточка берёт свою форму из
+ * пропорции обложки (тикет X5), а по одному блобу этого не узнать, не расшифровав
+ * его. Переноса данных здесь нет намеренно — размеры существующих фотографий
+ * дописываются по первому чтению, см. `photosRepository.getSizes`. Расшифровать
+ * сотню снимков внутри versionchange-транзакции всё равно нельзя: она закроется
+ * на первом же await.
  */
-export const DB_VERSION = 2
+export const DB_VERSION = 3
 
 /**
  * Object Store Names
  */
 export const STORES = {
   PLANTS: 'plants',
-  PHOTOS: 'photos'
+  PHOTOS: 'photos',
+  /** Ключ фотографии → `{ width, height }`. Отдельно от блобов: так добавление
+   *  размеров не требует перезаписи самих блобов. */
+  PHOTO_SIZES: 'photoSizes'
 } as const
 
 /**
@@ -49,6 +59,11 @@ export function createSchema(db: IDBDatabase): void {
     db.createObjectStore(STORES.PHOTOS)
     // No keyPath - we use string keys directly
     // No indexes needed - photos are accessed directly by key
+  }
+
+  // Размеры фотографий: тот же ключ, что у блоба, значение `{ width, height }`
+  if (!db.objectStoreNames.contains(STORES.PHOTO_SIZES)) {
+    db.createObjectStore(STORES.PHOTO_SIZES)
   }
 }
 

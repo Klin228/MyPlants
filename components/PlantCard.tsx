@@ -12,9 +12,14 @@ interface PlantCardProps {
   /** Возвращает `true`, если растение действительно удалено */
   onDelete: (plantId: string) => Promise<boolean>
   onEdit: (plant: Plant) => void
+  /**
+   * Пропорция рамки фотографии (тикет X5). Считает её родитель: то же число
+   * нужно кладке, чтобы предсказать высоту карточки до отрисовки.
+   */
+  ratio?: number
 }
 
-export default function PlantCard({ plant, onDelete, onEdit }: PlantCardProps) {
+export default function PlantCard({ plant, onDelete, onEdit, ratio }: PlantCardProps) {
   /**
    * Удаление необратимо — вместе с растением из базы уходят его фотографии, —
    * поэтому сначала спрашиваем. Тот же принцип, что у отзыва публикации в
@@ -43,7 +48,7 @@ export default function PlantCard({ plant, onDelete, onEdit }: PlantCardProps) {
 
   return (
     <div className="card">
-      <PhotoGallery photos={plant.photos || []} alt={plant.name} />
+      <PhotoGallery photos={plant.photos || []} alt={plant.name} ratio={ratio} />
 
       <div className="card-body">
         <h3 className="card-title">{plant.name}</h3>

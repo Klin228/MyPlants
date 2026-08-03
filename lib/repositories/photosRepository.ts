@@ -16,6 +16,7 @@
 
 import { initDB } from '../db'
 import { STORES } from '../db/schema'
+import { measureImage } from '../images'
 
 /**
  * Прочитать один блоб по ключу
@@ -85,27 +86,100 @@ export function revokeUrls(urls: string[]): void {
 }
 
 /**
- * Сохранить фотографию и вернуть её ключ
+ * Размеры фотографии. Из них берётся форма карточки — см. `lib/photoRatio.ts`.
  */
-export async function addPhoto(plantId: string, blob: Blob): Promise<string> {
+export interface PhotoSize {
+  width: number
+  height: number
+}
+
+/**
+ * Сохранить фотографию и вернуть её ключ.
+ *
+ * Размеры пишутся рядом, в той же транзакции: тот, кто уменьшал фотографию, их
+ * уже знает (`resizeToJpeg` возвращает настоящие размеры результата), и выбросить
+ * их значило бы расшифровывать блоб заново при первом показе карточки.
+ */
+export async function addPhoto(plantId: string, blob: Blob, size?: PhotoSize): Promise<string> {
   const db = await initDB()
 
   const key = `photo_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
 
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORES.PHOTOS], 'readwrite')
-    const store = transaction.objectStore(STORES.PHOTOS)
-    const request = store.put(blob, key)
+    const transaction = db.transaction([STORES.PHOTOS, STORES.PHOTO_SIZES], 'readwrite')
+    transaction.objectStore(STORES.PHOTOS).put(blob, key)
+    if (size) transaction.objectStore(STORES.PHOTO_SIZES).put(size, key)
 
-    request.onsuccess = () => {
-      resolve(key)
-    }
-
-    request.onerror = () => {
-      console.error('Error adding photo:', request.error)
-      reject(request.error)
+    transaction.oncomplete = () => resolve(key)
+    transaction.onabort = () => {
+      console.error('Error adding photo:', transaction.error)
+      reject(transaction.error ?? new Error('Could not save the photo'))
     }
   })
+}
+
+/**
+ * Размеры фотографий по ключам.
+ *
+ * Чего нет в сторе размеров — обмеряется по блобу и дописывается. Так фотографии,
+ * сохранённые до версии 3, получают пропорцию при первом же показе, без переноса
+ * данных при обновлении базы. Первый показ такой карточки может дрогнуть: до
+ * обмера её форма неизвестна и берётся значение по умолчанию.
+ *
+ * Ключи без блоба и нерасшифровываемые блобы просто отсутствуют в ответе —
+ * карточка возьмёт форму по умолчанию, а не сломается.
+ */
+export async function getSizes(keys: string[]): Promise<Record<string, PhotoSize>> {
+  if (keys.length === 0) return {}
+
+  const db = await initDB()
+  const unique = [...new Set(keys)]
+
+  const known = await new Promise<Record<string, PhotoSize>>((resolve, reject) => {
+    const transaction = db.transaction([STORES.PHOTO_SIZES], 'readonly')
+    const store = transaction.objectStore(STORES.PHOTO_SIZES)
+    const found: Record<string, PhotoSize> = {}
+
+    for (const key of unique) {
+      const request = store.get(key)
+      request.onsuccess = () => {
+        const size = request.result as PhotoSize | undefined
+        if (size && size.width > 0 && size.height > 0) found[key] = size
+      }
+    }
+
+    transaction.oncomplete = () => resolve(found)
+    transaction.onabort = () => reject(transaction.error)
+  })
+
+  const missing = unique.filter((key) => !known[key])
+  if (missing.length === 0) return known
+
+  const measured = await Promise.all(
+    missing.map(async (key) => {
+      try {
+        const blob = await readBlob(db, key)
+        return [key, await measureImage(blob)] as const
+      } catch (error) {
+        console.warn(`Не удалось обмерить фотографию ${key}:`, error)
+        return null
+      }
+    })
+  )
+
+  const fresh = measured.filter((entry): entry is readonly [string, PhotoSize] => entry !== null)
+  if (fresh.length > 0) {
+    await new Promise<void>((resolve) => {
+      const transaction = db.transaction([STORES.PHOTO_SIZES], 'readwrite')
+      const store = transaction.objectStore(STORES.PHOTO_SIZES)
+      for (const [key, size] of fresh) store.put(size, key)
+      // Не дописали размеры — не беда: обмерим в следующий раз
+      transaction.oncomplete = () => resolve()
+      transaction.onabort = () => resolve()
+    })
+  }
+
+  return { ...known, ...Object.fromEntries(fresh) }
 }
 
 /**
@@ -190,6 +264,7 @@ export async function getBlobById(photoKey: string): Promise<Blob> {
 export const photosRepository = {
   restorePhoto,
   getByPlantId,
+  getSizes,
   revokeUrls,
   addPhoto,
   deletePhoto,

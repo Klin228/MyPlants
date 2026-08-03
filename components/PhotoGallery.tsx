@@ -39,6 +39,14 @@ import FullscreenPhotoViewer from './FullscreenPhotoViewer'
 interface PhotoGalleryProps {
   photos: string[] // ключи фотографий в IndexedDB
   alt: string
+  /**
+   * Пропорция рамки — ширина, поделённая на высоту (тикет X5).
+   *
+   * Приходит от родителя, а не считается здесь: то же число нужно кладке для
+   * предсказания высоты карточки, и считать его дважды из одних данных значит
+   * однажды разойтись. Не передали — рамка возьмёт значение из токена.
+   */
+  ratio?: number
 }
 
 /** Пороги те же, что в просмотрщике: один жест не должен вести себя двояко. */
@@ -55,7 +63,7 @@ const FLICK_DISTANCE = 25
  */
 type Mode = 'idle' | 'swipe' | 'scroll'
 
-export default function PhotoGallery({ photos, alt }: PhotoGalleryProps) {
+export default function PhotoGallery({ photos, alt, ratio }: PhotoGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0)
   const [photoUrls, setPhotoUrls] = useState<string[]>([])
   const [isFullscreenOpen, setIsFullscreenOpen] = useState(false)
@@ -224,23 +232,39 @@ export default function PhotoGallery({ photos, alt }: PhotoGalleryProps) {
     }
   }
 
+  /*
+   * Пропорция рамки — инлайновым свойством, и это оговорённое исключение из
+   * правила «инлайновый style только для покадровых значений жеста»: значение
+   * приходит из данных фотографии, классом его не выразить. Правило и исключение
+   * записаны в `CLAUDE.md`.
+   */
+  const frameStyle =
+    ratio === undefined ? undefined : ({ '--frame-ratio': String(ratio) } as React.CSSProperties)
+
   // Фотографии есть, но ещё читаются из базы: на их месте скелетон той же
   // пропорции. Надпись «Loading photos...» занимала другую высоту, и вёрстка
   // прыгала в момент подстановки картинки.
   if (photos.length > 0 && photoUrls.length === 0) {
-    return <div className="gallery-skeleton skeleton" aria-label="Loading photo" role="img" />
+    return (
+      <div
+        className="gallery-skeleton skeleton"
+        style={frameStyle}
+        aria-label="Loading photo"
+        role="img"
+      />
+    )
   }
 
   // А это не загрузка, а факт: у растения нет ни одной фотографии. Пульсировать
   // тут нечему — ждать нечего.
   if (photos.length === 0) {
-    return <div className="gallery-empty">No photo</div>
+    return <div className="gallery-empty" style={frameStyle}>No photo</div>
   }
 
   const isSwiping = mode === 'swipe'
 
   return (
-    <div ref={containerRef} className="gallery" onKeyDown={onKeyDown}>
+    <div ref={containerRef} className="gallery" style={frameStyle} onKeyDown={onKeyDown}>
       {/*
         Обработчики касаний висят на ленте, а не на контейнере. Точки —
         сиблинги ленты и лежат поверх неё, так что тап по точке до этих

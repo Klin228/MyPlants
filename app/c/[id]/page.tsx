@@ -15,6 +15,7 @@ import type { Metadata } from 'next'
 import { unstable_noStore as noStore } from 'next/cache'
 import { sql } from '@/lib/server/db'
 import { formatCalendarDate } from '@/lib/dates'
+import { frameRatio } from '@/lib/photoRatio'
 import { countSpecies, describeCollection } from '@/lib/collectionSummary'
 import PublicPageBeacon from '@/components/PublicPageBeacon'
 import type { SnapshotPhoto } from '@/lib/sharing/types'
@@ -300,10 +301,23 @@ function Unavailable({ id }: { id: string }) {
  * подписью он читается как то, чем и является.
  */
 function Photos({ base, plant, eager }: { base: string | null; plant: PlantRow; eager: boolean }) {
+  /*
+   * Форму рамки задаёт обложка — первая фотография (тикет X5).
+   *
+   * Те же данные и то же правило, что у карточки в коллекции: размеры лежат в
+   * снимке у каждой фотографии, а зажимает пропорцию общий `frameRatio`. Иначе
+   * владелец кадрирует под один кроп у себя, а гость по ссылке видит другой.
+   *
+   * Остальные фотографии растения кадрируются в ту же рамку: своя высота у каждой
+   * означала бы, что лента дёргается по вертикали при листании.
+   */
+  const ratio = frameRatio(plant.photos[0])
+  const frameStyle = { '--frame-ratio': String(ratio) } as React.CSSProperties
+
   if (!base || plant.photos.length === 0) {
     return (
       <div className="showcase-strip">
-        <Frame />
+        <Frame style={frameStyle} />
       </div>
     )
   }
@@ -318,7 +332,7 @@ function Photos({ base, plant, eager }: { base: string | null; plant: PlantRow; 
          * снимки живут в базе годами и переписывать их мы не станем — витрина
          * обязана рисовать и их. Найдено ревью F3.
          */
-        <Frame key={`${photo.path}-${photoIndex}`}>
+        <Frame key={`${photo.path}-${photoIndex}`} style={frameStyle}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             className="showcase-photo"
@@ -338,9 +352,9 @@ function Photos({ base, plant, eager }: { base: string | null; plant: PlantRow; 
   )
 }
 
-function Frame({ children }: { children?: React.ReactNode }) {
+function Frame({ children, style }: { children?: React.ReactNode; style?: React.CSSProperties }) {
   return (
-    <div className="showcase-frame">
+    <div className="showcase-frame" style={style}>
       {/*
         Подпись лежит в разметке всегда — она подложка, а не сообщение. Отсюда
         `aria-hidden`: узнать, загрузилась ли картинка, разметка не может, и без

@@ -163,9 +163,13 @@ export async function update(id: string, data: Partial<NewPlant>): Promise<Plant
   return new Promise((resolve, reject) => {
     // Фотографии в той же транзакции: убранный блоб удаляется вместе с записью
     // нового набора ключей, а не отдельным шагом после неё.
-    const transaction = db.transaction([STORES.PLANTS, STORES.PHOTOS], 'readwrite')
+    const transaction = db.transaction(
+      [STORES.PLANTS, STORES.PHOTOS, STORES.PHOTO_SIZES],
+      'readwrite'
+    )
     const plants = transaction.objectStore(STORES.PLANTS)
     const photos = transaction.objectStore(STORES.PHOTOS)
+    const sizes = transaction.objectStore(STORES.PHOTO_SIZES)
 
     let updatedPlant: Plant | null = null
     let missing = false
@@ -228,7 +232,7 @@ export async function update(id: string, data: Partial<NewPlant>): Promise<Plant
 
       write.onsuccess = () => {
         updatedPlant = nextPlant
-        dropUnreferencedPhotos(plants, photos, dropped)
+        dropUnreferencedPhotos(plants, photos, sizes, dropped)
       }
     }
   })
@@ -252,6 +256,7 @@ export async function update(id: string, data: Partial<NewPlant>): Promise<Plant
 function dropUnreferencedPhotos(
   plants: IDBObjectStore,
   photos: IDBObjectStore,
+  sizes: IDBObjectStore,
   candidates: string[]
 ): void {
   if (candidates.length === 0) return
@@ -279,7 +284,11 @@ function dropUnreferencedPhotos(
     }
 
     for (const key of candidates) {
-      if (!referenced.has(key)) photos.delete(key)
+      if (referenced.has(key)) continue
+      photos.delete(key)
+      // Размеры живут отдельным стором и без этой строки остались бы такими же
+      // неадресуемыми, каким раньше оставался сам блоб
+      sizes.delete(key)
     }
   }
 }
@@ -300,9 +309,13 @@ export async function deletePlant(id: string): Promise<void> {
   const db = await initDB()
 
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORES.PLANTS, STORES.PHOTOS], 'readwrite')
+    const transaction = db.transaction(
+      [STORES.PLANTS, STORES.PHOTOS, STORES.PHOTO_SIZES],
+      'readwrite'
+    )
     const plants = transaction.objectStore(STORES.PLANTS)
     const photos = transaction.objectStore(STORES.PHOTOS)
+    const sizes = transaction.objectStore(STORES.PHOTO_SIZES)
 
     transaction.oncomplete = () => resolve()
     transaction.onabort = () => {
@@ -329,7 +342,7 @@ export async function deletePlant(id: string): Promise<void> {
       }
 
       remove.onsuccess = () => {
-        dropUnreferencedPhotos(plants, photos, plant.photos ?? [])
+        dropUnreferencedPhotos(plants, photos, sizes, plant.photos ?? [])
       }
     }
   })
