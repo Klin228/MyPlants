@@ -20,8 +20,13 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { Download, HardDrive, Upload, X } from 'lucide-react'
+import { Download, HardDrive, Link2, Upload, X } from 'lucide-react'
 import { createBackup, restoreBackup } from '@/lib/backup'
+import {
+  previewPublication,
+  restoreFromPublication,
+  type PublicationPreview,
+} from '@/lib/sharing/restoreFromPublication'
 import {
   detectInAppBrowser,
   detectPlatform,
@@ -56,6 +61,11 @@ export default function StorageStatus({ onRestored }: StorageStatusProps) {
   const [backup, setBackup] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
+
+  /** Восстановление по ссылке: поле раскрыто, что в нём, и что нашлось. */
+  const [linkOpen, setLinkOpen] = useState(false)
+  const [link, setLink] = useState('')
+  const [preview, setPreview] = useState<PublicationPreview | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -140,6 +150,50 @@ export default function StorageStatus({ onRestored }: StorageStatusProps) {
     }
   }
 
+  /**
+   * Сначала смотрим, что по ссылке, и только потом пишем.
+   *
+   * Два шага, а не один: критерий тикета — сказать до восстановления, каких
+   * полей не будет. Общая фраза «вернётся не всё» это обещание, а посчитанное
+   * по собственной публикации человека — факт, и он убедительнее.
+   */
+  const look = async () => {
+    setBusy(true)
+    setBackup(null)
+    setPreview(null)
+    try {
+      setPreview(await previewPublication(link))
+    } catch (error) {
+      setBackup(error instanceof Error ? error.message : 'Could not read the link')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const restoreLink = async () => {
+    setBusy(true)
+    setBackup('Downloading photos…')
+    try {
+      const { added, skipped, photos, photoFailures, pricesMissing } = await restoreFromPublication(link)
+
+      const parts = [`Restored ${added} ${added === 1 ? 'plant' : 'plants'} with ${photos} ${photos === 1 ? 'photo' : 'photos'}`]
+      if (skipped > 0) parts.push(`${skipped} already here`)
+      if (pricesMissing) parts.push('prices were not published, so they are set to 0')
+      if (photoFailures.length > 0) parts.push(`some photos failed for: ${photoFailures.join(', ')}`)
+      setBackup(`${parts.join('. ')}.`)
+
+      setPreview(null)
+      setLinkOpen(false)
+      setLink('')
+      if (added > 0) onRestored()
+    } catch (error) {
+      console.error('Не удалось восстановить из публикации:', error)
+      setBackup(error instanceof Error ? error.message : 'Could not restore from the link')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <section className="storage" aria-label="Storage">
       <p className="storage-line">
@@ -193,7 +247,72 @@ export default function StorageStatus({ onRestored }: StorageStatusProps) {
             if (file) restore(file)
           }}
         />
+
+        <button
+          type="button"
+          onClick={() => { setLinkOpen((open) => !open); setBackup(null); setPreview(null) }}
+          className="btn btn--quiet"
+          disabled={busy}
+        >
+          <Link2 size={16} aria-hidden="true" />
+          Restore from a link
+        </button>
       </div>
+
+      {linkOpen && (
+        <div className="storage-link">
+          <p className="storage-link-note">
+            If you published this collection and lost the device, the link brings back names,
+            species, acquisition dates and photos. <strong>Prices, notes and where each plant came
+            from only come back if you chose to publish them</strong> — by default they never leave
+            the device, so the server does not have them.
+          </p>
+
+          <div className="storage-link-row">
+            <input
+              type="url"
+              value={link}
+              onChange={(event) => setLink(event.target.value)}
+              placeholder="https://…/c/…"
+              className="field-input"
+              aria-label="Collection link"
+              disabled={busy}
+            />
+            <button type="button" onClick={look} className="btn btn--secondary" disabled={busy || !link.trim()}>
+              Check
+            </button>
+          </div>
+
+          {preview && (
+            <div className="storage-link-preview">
+              <p className="storage-link-found">
+                Found {preview.title ? `“${preview.title}”` : 'a collection'}: {preview.plants}{' '}
+                {preview.plants === 1 ? 'plant' : 'plants'}, {preview.photos}{' '}
+                {preview.photos === 1 ? 'photo' : 'photos'}.
+              </p>
+              {/* Перечисляем именно то, чего нет в ЭТОЙ публикации, а не вообще */}
+              <p className="storage-link-missing">
+                {[
+                  !preview.hasPrices && 'prices',
+                  !preview.hasNotes && 'notes',
+                  !preview.hasSource && 'sources',
+                ].filter(Boolean).length > 0
+                  ? `Not in this publication and will not come back: ${[
+                      !preview.hasPrices && 'prices',
+                      !preview.hasNotes && 'notes',
+                      !preview.hasSource && 'sources',
+                    ]
+                      .filter(Boolean)
+                      .join(', ')}.`
+                  : 'This publication includes prices, notes and sources — everything comes back.'}
+              </p>
+              <button type="button" onClick={restoreLink} className="btn btn--primary" disabled={busy}>
+                {busy ? 'Restoring…' : 'Restore these plants'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {backup && (
         <p className="storage-result" aria-live="polite">

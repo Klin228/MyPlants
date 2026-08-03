@@ -1086,6 +1086,65 @@ body {
   color: var(--color-text-muted);
 }
 
+/* Восстановление по публичной ссылке */
+.storage-link {
+  margin-top: var(--space-lg);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+}
+
+.storage-link-note {
+  margin: 0 0 var(--space-lg) 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.storage-link-row {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: stretch;
+}
+
+/* Поле тянется, кнопка проверки — по содержимому */
+.storage-link-row .field-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.storage-link-row .btn--secondary {
+  flex: 0 0 auto;
+  padding: 0 var(--space-lg);
+}
+
+.storage-link-preview {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-border-soft);
+}
+
+.storage-link-found {
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--color-text);
+}
+
+/* Чего в этой публикации нет — цветом опасности: это и есть главная оговорка */
+.storage-link-missing {
+  margin: var(--space-xs) 0 var(--space-lg) 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--color-danger);
+}
+
+.storage-link-preview .btn--primary {
+  flex: 0 0 auto;
+  padding: 0 var(--space-xl);
+  min-height: var(--tap-target);
+}
+
 .storage-hint {
   display: flex;
   align-items: flex-start;
