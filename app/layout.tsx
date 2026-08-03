@@ -1,10 +1,45 @@
 import type { Metadata, Viewport } from 'next'
-import { Lora, PT_Sans } from 'next/font/google'
+import { Fraunces, Lora, PT_Sans } from 'next/font/google'
 import ServiceWorkerRegister from './ServiceWorkerRegister'
 import './globals.css'
 
-const lora = Lora({
+/**
+ * Дисплейный шрифт заголовков (тикет G1).
+ *
+ * Переменный, вес до 900: у Lora максимум 700, и на крупном кегле она выглядит
+ * тонкой и широкой — плотности, которую хотел владелец, из неё не выжать.
+ *
+ * Ось `opsz` включена явно. По умолчанию `next/font` берёт из переменного шрифта
+ * только вес, а у Fraunces оптический размер меняет пропорции букв: на заголовке
+ * в четыре сантиметра они становятся плотнее, чем в подписи.
+ *
+ * **Кириллицы в Fraunces нет**, и это не оплошность подключения: в наборе только
+ * латиница. Названия растений вводит человек, они бывают русскими — поэтому Lora
+ * остаётся вторым шрифтом в стеке `--font-display`, и подстановка идёт по глифам.
+ */
+const fraunces = Fraunces({
   subsets: ['latin'],
+  axes: ['opsz'],
+  variable: '--font-fraunces',
+  display: 'swap',
+  /*
+   * Автоматическая подменная гарнитура выключена, и без этого замысел не
+   * работал: `next/font` дописывает в стек своё `__Fraunces_Fallback` — местный
+   * системный шрифт с подогнанными метриками, — и ставит его **перед** нашей
+   * Lora. Кириллица есть и у него, поэтому подстановка по глифам останавливалась
+   * там, и русские названия набирались системным шрифтом вместо Lora. Замерено:
+   * строка «Монстера» выходила 192.48 пикселя вместо 196.32 у Lora.
+   *
+   * Плата: пока шрифт грузится, подстановка идёт сразу на Lora, метрики которой
+   * под Fraunces не подогнаны, — то есть сдвиг вёрстки при подмене чуть заметнее.
+   * Lora к этому моменту уже загружена и покрывает оба алфавита, так что обмен
+   * честный.
+   */
+  adjustFontFallback: false,
+})
+
+const lora = Lora({
+  subsets: ['latin', 'cyrillic'],
   variable: '--font-lora',
   display: 'swap',
 })
@@ -99,7 +134,7 @@ export default function RootLayout({
     // globals.css объявлен в :root и подставляет --font-pt-sans там же. На
     // <body> они были бы объявлены уровнем ниже, подстановка не нашла бы их,
     // и вся типографика молча съезжала бы на Times.
-    <html lang="en" className={`${lora.variable} ${ptSans.variable}`}>
+    <html lang="en" className={`${fraunces.variable} ${lora.variable} ${ptSans.variable}`}>
       <body>
         <ServiceWorkerRegister />
         

@@ -95,7 +95,14 @@
   --space-3xl: 3rem;
 
   /* Типографика */
-  --font-display: var(--font-lora), serif;
+  /*
+   * Дисплейный шрифт — Fraunces, а Lora осталась вторым в стеке, и это не
+   * рудимент (тикет G1). В Fraunces нет кириллицы, а названия растений вводит
+   * человек: подстановка идёт по глифам, поэтому русское название отрисуется
+   * Lora само, без ветвлений в коде. Цена — смешанное название («Монстера
+   * Deliciosa») будет набрано двумя шрифтами.
+   */
+  --font-display: var(--font-fraunces), var(--font-lora), serif;
   --font-body: var(--font-pt-sans), system-ui, -apple-system, sans-serif;
 
   --text-xs: 0.85rem;
