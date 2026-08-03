@@ -132,7 +132,14 @@ export async function restorePhoto(key: string, blob: Blob): Promise<void> {
 }
 
 /**
- * Удалить фотографию по ключу
+ * Удалить фотографию по ключу.
+ *
+ * **Ссылки не проверяются, и своей транзакцией эта функция ничего не
+ * согласовывает.** Удаление блобов при правке и удалении растения живёт в
+ * `plantsRepository.dropUnreferencedPhotos`: только там в один момент известны
+ * прежний набор ключей, новый и все остальные растения, и всё это делается той
+ * же транзакцией, что пишет растение. Прямой вызов отсюда вынесет фотографию,
+ * даже если на неё ссылается другое растение (тикет X7).
  */
 export async function deletePhoto(photoId: string): Promise<void> {
   const db = await initDB()
@@ -154,7 +161,8 @@ export async function deletePhoto(photoId: string): Promise<void> {
 }
 
 /**
- * Удалить несколько фотографий
+ * Удалить несколько фотографий. Та же оговорка, что у `deletePhoto`: ссылки не
+ * проверяются, транзакция на каждый ключ своя.
  */
 export async function deletePhotos(photoIds: string[]): Promise<void> {
   await Promise.all(photoIds.map(key => deletePhoto(key)))

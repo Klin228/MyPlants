@@ -8,14 +8,19 @@
  * Responsibilities:
  * - Store and retrieve plant metadata (no blobs)
  * - Handle plant creation, updates, and deletion
- * - Coordinate with photos repository for photo cleanup on deletion
+ * - Убирать блобы, на которые больше никто не ссылается
+ *
+ * Блобы удаляются здесь, а не в `photosRepository`: только тут в один момент
+ * известны и прежний набор ключей, и новый, и все остальные растения. Работа со
+ * стором фотографий идёт напрямую, в той же транзакции, что и запись растения, —
+ * `photosRepository` открывает свою и годится, только когда одной транзакции не
+ * требуется.
  */
 
 import { initDB } from '../db'
 import { STORES } from '../db/schema'
 import { newId } from '../ids'
 import type { NewPlant, Plant } from '../models/plant'
-import { photosRepository } from './photosRepository'
 
 /**
  * Get all plants from storage
@@ -156,13 +161,39 @@ export async function update(id: string, data: Partial<NewPlant>): Promise<Plant
   const db = await initDB()
 
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORES.PLANTS], 'readwrite')
-    const store = transaction.objectStore(STORES.PLANTS)
-    const read = store.get(id)
+    // Фотографии в той же транзакции: убранный блоб удаляется вместе с записью
+    // нового набора ключей, а не отдельным шагом после неё.
+    const transaction = db.transaction([STORES.PLANTS, STORES.PHOTOS], 'readwrite')
+    const plants = transaction.objectStore(STORES.PLANTS)
+    const photos = transaction.objectStore(STORES.PHOTOS)
+
+    let updatedPlant: Plant | null = null
+    let missing = false
+
+    /*
+     * Обещание разрешается по завершении транзакции, а не по успеху записи.
+     * Удаление блобов идёт после `put`, и вызывающему нельзя отвечать раньше,
+     * чем всё это доедет до диска: иначе следующий за правкой замер занятого
+     * места покажет старое число.
+     */
+    transaction.oncomplete = () => {
+      if (updatedPlant) resolve(updatedPlant)
+      else reject(new Error(`Plant with id ${id} not found`))
+    }
+
+    transaction.onabort = () => {
+      if (missing) {
+        reject(new Error(`Plant with id ${id} not found`))
+        return
+      }
+      console.error('Error updating plant:', transaction.error)
+      reject(transaction.error ?? new Error('Could not update the plant'))
+    }
+
+    const read = plants.get(id)
 
     read.onerror = () => {
       console.error('Error reading plant before update:', read.error)
-      reject(read.error)
     }
 
     read.onsuccess = () => {
@@ -170,12 +201,12 @@ export async function update(id: string, data: Partial<NewPlant>): Promise<Plant
 
       if (!existingPlant) {
         // Растения нет — писать нечего, и транзакцию доводить незачем
+        missing = true
         transaction.abort()
-        reject(new Error(`Plant with id ${id} not found`))
         return
       }
 
-      const updatedPlant: Plant = {
+      const nextPlant: Plant = {
         ...existingPlant,
         ...data,
         id, // Ensure id is preserved
@@ -183,58 +214,123 @@ export async function update(id: string, data: Partial<NewPlant>): Promise<Plant
         updatedAt: new Date().toISOString()
       }
 
-      const write = store.put(updatedPlant)
+      // Ключи, которых в новом наборе больше нет. `data.photos` может не
+      // приходить вовсе — тогда набор тот же и убранных нет.
+      const dropped = (existingPlant.photos ?? []).filter(
+        (key) => !nextPlant.photos.includes(key)
+      )
 
-      write.onsuccess = () => {
-        resolve(updatedPlant)
-      }
+      const write = plants.put(nextPlant)
 
       write.onerror = () => {
         console.error('Error updating plant:', write.error)
-        reject(write.error)
+      }
+
+      write.onsuccess = () => {
+        updatedPlant = nextPlant
+        dropUnreferencedPhotos(plants, photos, dropped)
       }
     }
   })
 }
 
 /**
+ * Удалить блобы, на которые больше никто не ссылается.
+ *
+ * Вызывать **внутри транзакции, где новое состояние растений уже записано**:
+ * чтение внутри транзакции видит её собственные записи, поэтому проверка идёт по
+ * тому, что будет после правки, а не до неё. Отдельным шагом после транзакции
+ * это делать нельзя — между шагами набор ссылок может измениться.
+ *
+ * Проверка «а не ссылается ли кто-то ещё» обязательна. Сегодня ключи выдаются
+ * уникальными на каждую запись, и разделить фотографию двум растениям нечем;
+ * но `restorePhoto` пишет блоб под ключом из файла, то есть достаточно чужой
+ * копии с одинаковыми ключами — и прямолинейное «убрали из формы, значит
+ * удалить» вынесло бы фотографию у другого растения. Стоит это одного чтения
+ * растений в уже открытой транзакции.
+ */
+function dropUnreferencedPhotos(
+  plants: IDBObjectStore,
+  photos: IDBObjectStore,
+  candidates: string[]
+): void {
+  if (candidates.length === 0) return
+
+  const scan = plants.getAll()
+
+  scan.onerror = (event) => {
+    /*
+     * Не выяснили, кто на что ссылается — значит не удаляем ничего. Лишний блоб
+     * в базе неприятен, удалённая чужая фотография необратима.
+     *
+     * `preventDefault` здесь обязателен, и без него обещание выше не
+     * выполнялось: отказ запроса, чей обработчик его не погасил, обрывает всю
+     * транзакцию — вместе с уже записанной правкой растения. То есть сбой уборки
+     * стоил бы человеку его правки, хотя сама правка удалась.
+     */
+    event.preventDefault()
+    console.error('Не удалось проверить ссылки на фотографии:', scan.error)
+  }
+
+  scan.onsuccess = () => {
+    const referenced = new Set<string>()
+    for (const plant of (scan.result ?? []) as Plant[]) {
+      for (const key of plant.photos ?? []) referenced.add(key)
+    }
+
+    for (const key of candidates) {
+      if (!referenced.has(key)) photos.delete(key)
+    }
+  }
+}
+
+/**
  * Delete a plant and all its associated photos
- * 
- * This method ensures that when a plant is deleted,
- * all related photos are also removed from storage.
- * 
+ *
+ * Одной транзакцией, и в правильном порядке. Раньше фотографии удалялись
+ * первыми, отдельными транзакциями, и только потом само растение: сбой между
+ * этими шагами оставлял растение со ссылками в пустоту — то есть видимую
+ * поломку вместо безобидного мусора. Плюс удалялись все ключи растения без
+ * оглядки на остальных, и разделённая фотография исчезла бы у обоих.
+ *
  * @param id - The plant ID to delete
  * @returns Promise that resolves when deletion is complete
  */
 export async function deletePlant(id: string): Promise<void> {
   const db = await initDB()
-  
-  // First, get the plant to find its photo keys
-  const plant = await getById(id)
-  
-  // Delete all photos associated with this plant
-  if (plant && plant.photos && plant.photos.length > 0) {
-    try {
-      await photosRepository.deletePhotos(plant.photos)
-    } catch (error) {
-      console.error('Error deleting photos for plant:', error)
-      // Continue with plant deletion even if photo deletion fails
-    }
-  }
-  
-  // Then delete the plant
+
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORES.PLANTS], 'readwrite')
-    const store = transaction.objectStore(STORES.PLANTS)
-    const request = store.delete(id)
-    
-    request.onsuccess = () => {
-      resolve()
+    const transaction = db.transaction([STORES.PLANTS, STORES.PHOTOS], 'readwrite')
+    const plants = transaction.objectStore(STORES.PLANTS)
+    const photos = transaction.objectStore(STORES.PHOTOS)
+
+    transaction.oncomplete = () => resolve()
+    transaction.onabort = () => {
+      console.error('Error deleting plant:', transaction.error)
+      reject(transaction.error ?? new Error('Could not delete the plant'))
     }
-    
-    request.onerror = () => {
-      console.error('Error deleting plant:', request.error)
-      reject(request.error)
+
+    const read = plants.get(id)
+
+    read.onerror = () => {
+      console.error('Error reading plant before delete:', read.error)
+    }
+
+    read.onsuccess = () => {
+      const plant = read.result as Plant | undefined
+
+      // Растения нет — считаем удаление состоявшимся: результат тот же
+      if (!plant) return
+
+      const remove = plants.delete(id)
+
+      remove.onerror = () => {
+        console.error('Error deleting plant:', remove.error)
+      }
+
+      remove.onsuccess = () => {
+        dropUnreferencedPhotos(plants, photos, plant.photos ?? [])
+      }
     }
   })
 }
