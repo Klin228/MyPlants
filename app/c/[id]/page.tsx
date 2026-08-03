@@ -330,7 +330,16 @@ function Photos({ base, plant, eager }: { base: string | null; plant: PlantRow; 
 function Frame({ children }: { children?: React.ReactNode }) {
   return (
     <div className="showcase-frame">
-      <span className="showcase-frame-note">Photo unavailable</span>
+      {/*
+        Подпись лежит в разметке всегда — она подложка, а не сообщение. Отсюда
+        `aria-hidden`: узнать, загрузилась ли картинка, разметка не может, и без
+        него читалка экрана объявляла бы «фотографии нет» над каждой нормально
+        показанной фотографией. Ничего при этом не теряется: сама картинка
+        помечена оформительской, а название растения идёт текстом следом.
+      */}
+      <span className="showcase-frame-note" aria-hidden="true">
+        Photo unavailable
+      </span>
       {children}
     </div>
   )
