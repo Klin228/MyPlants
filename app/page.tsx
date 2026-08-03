@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Search, Filter, Plus, Share2 } from 'lucide-react'
 import PlantCard from '@/components/PlantCard'
 import ShareDialog from '@/components/ShareDialog'
+import Toast from '@/components/Toast'
 import { plantsRepository } from '@/lib/repositories/plantsRepository'
 import { initializeDatabase } from '@/lib/repositories/migration'
 import { speciesKey } from '@/lib/species'
@@ -27,6 +28,7 @@ export default function Home() {
   const [sortBy, setSortBy] = useState<'name' | 'price' | 'date'>('name')
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [isShareOpen, setIsShareOpen] = useState(false)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
   const filterRef = useRef<HTMLDivElement>(null)
 
   // Initialize database and load plants on mount and when page becomes visible
@@ -65,17 +67,29 @@ export default function Home() {
     }
   }, [])
 
-  // Handle deleting a plant
-  const handleDeletePlant = async (plantIdToDelete: string) => {
+  /**
+   * Удалить растение. Возвращает, получилось ли: карточке нужно знать, чтобы
+   * при неудаче выйти из состояния «Deleting…» и вернуть кнопки.
+   *
+   * Об исходе сообщаем тостом, а не `alert`. Именно двухшаговое подтверждение
+   * делает молчаливый сбой хуже: человек подтвердил удаление, а карточка
+   * осталась на месте — без сообщения это выглядит как поломка.
+   */
+  const handleDeletePlant = async (plantIdToDelete: string): Promise<boolean> => {
+    const name = (plants ?? []).find(plant => plant.id === plantIdToDelete)?.name
+
     try {
       // Delete plant (repository handles photo deletion automatically)
       await plantsRepository.delete(plantIdToDelete)
 
       // Update local state
       setPlants((current) => (current ?? []).filter(plant => plant.id !== plantIdToDelete))
+      setToastMessage(name ? `${name} deleted` : 'Plant deleted')
+      return true
     } catch (error) {
       console.error('Error deleting plant:', error)
-      alert('Error deleting plant. Please try again.')
+      setToastMessage('Could not delete. Try again.')
+      return false
     }
   }
 
@@ -284,6 +298,10 @@ export default function Home() {
       </div>
 
       {isShareOpen && <ShareDialog plants={loaded} onClose={() => setIsShareOpen(false)} />}
+
+      {toastMessage && (
+        <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+      )}
     </main>
   )
 }

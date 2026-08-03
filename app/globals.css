@@ -232,17 +232,6 @@ body {
   font-size: var(--text-base);
 }
 
-/* Переход к редактированию */
-.btn--accent {
-  width: 100%;
-  padding: var(--space-md);
-  min-height: var(--tap-target);
-  border-radius: var(--radius-md);
-  background-color: var(--color-accent);
-  color: var(--color-surface);
-  font-size: var(--text-base);
-}
-
 .btn--link {
   padding: 0.875rem var(--space-xl);
   border-radius: var(--radius-md);
@@ -300,15 +289,6 @@ body {
   color: var(--color-on-photo);
 }
 
-/* Удаление растения в карточке: крестик набран текстом */
-.btn--scrim-lg {
-  width: 36px;
-  height: 36px;
-  font-size: var(--text-xl);
-  line-height: 1;
-  z-index: 10;
-}
-
 /* Удаление превью в форме: внутри иконка, свой размер шрифта ей не нужен */
 .btn--scrim-sm {
   width: 28px;
@@ -359,8 +339,84 @@ body {
   padding: var(--space-lg);
 }
 
-.card-body > .btn--accent {
+/*
+ * Ряд действий в конце карточки.
+ *
+ * Раньше здесь была одна кнопка «Edit» во всю ширину, а удаление висело
+ * 36-пиксельным крестиком поверх фотографии и срабатывало без вопроса. Крестик
+ * убран целиком: он был меньше площади касания, стоял в зоне, откуда начинается
+ * горизонтальный свайп ленты, и удалял растение вместе с фотографиями за одно
+ * случайное нажатие.
+ *
+ * Своего вертикального отступа у ряда нет — его высота это высота кнопок, то
+ * есть ровно `--tap-target`. Поэтому подтверждение, подменяющее ряд, не меняет
+ * высоту карточки, а значит и высоту строки сетки.
+ */
+.card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-xs);
   margin-top: auto;
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-border-soft);
+}
+
+.card-actions-question {
+  margin-right: auto;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+}
+
+/*
+ * Тихие кнопки: без заливки и рамки, кеглем меньше основного текста.
+ * «Меньше» здесь про вес и ширину, а не про площадь касания — 48 пикселей
+ * остаются, потому что промах по кнопке удаления это ровно то, от чего заведён
+ * тикет. Тот же приём уже применён у галочек в диалоге публикации.
+ */
+.btn--quiet,
+.btn--quiet-danger {
+  min-height: var(--tap-target);
+  min-width: var(--tap-target);
+  padding: 0 var(--space-md);
+  border: none;
+  border-radius: var(--radius-sm);
+  background-color: transparent;
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.btn--quiet {
+  color: var(--color-text-muted);
+}
+
+.btn--quiet-danger {
+  color: var(--color-danger);
+}
+
+.btn--quiet:hover,
+.btn--quiet-danger:hover {
+  background-color: var(--color-surface-muted);
+}
+
+/*
+ * Подтверждающая кнопка — залитая, но по размеру ряда, а не диалога.
+ * `.btn--danger` из диалога публикации здесь не годится: там `flex: 1` и
+ * отступ `--space-lg`, то есть кнопка высотой 56 пикселей во всю ширину —
+ * в карточке она громче самой карточки.
+ */
+.btn--danger-sm {
+  min-height: var(--tap-target);
+  padding: 0 var(--space-md);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-danger);
+  color: var(--color-surface);
+  font-size: var(--text-sm);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .card-title {
