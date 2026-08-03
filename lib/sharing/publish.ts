@@ -10,6 +10,7 @@ import { buildSnapshotDraft } from './buildSnapshot'
 import { forgetPublication, readPublication, savePublication, type Publication } from './publication'
 import { uploadDraftPhotos, type UploadCallbacks, type UploadProgress } from './uploadPhotos'
 import type { PublishOptions } from './types'
+import { track } from '../analytics'
 
 export interface PublishRequest {
   plants: Plant[]
@@ -61,6 +62,8 @@ export async function publishCollection(
     onProgress: (progress) => onProgress?.({ ...progress, stage: progress.phase }),
   }
 
+  track({ name: 'publish_started', plants: draft.plants.length })
+
   const snapshot = await uploadDraftPhotos(draft, uploadCallbacks)
 
   const photoCount = draft.plants.reduce((sum, plant) => sum + plant.photoKeys.length, 0)
@@ -94,6 +97,12 @@ export async function publishCollection(
   }
 
   savePublication(publication)
+
+  track({
+    name: 'publish_completed',
+    plants: draft.plants.length,
+    photos: draft.plants.reduce((sum, plant) => sum + plant.photoKeys.length, 0),
+  })
 
   return { publication, skipped, updated: Boolean(existing) && saved.reusedExisting }
 }

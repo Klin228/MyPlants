@@ -16,6 +16,7 @@
 
 import { useEffect, useState } from 'react'
 import { AlertTriangle, X } from 'lucide-react'
+import { track } from '@/lib/analytics'
 import {
   chromeIntentUrl,
   detectInAppBrowser,
@@ -55,6 +56,8 @@ export default function StorageWarning() {
     const browser = detectInAppBrowser(navigator.userAgent, { standalone: isStandalone() })
     if (browser) {
       setWarning({ kind: 'in-app', browser, quotaMb: null })
+      // Заодно измеряем масштаб проблемы: имя приложения наше, не пользователя
+      track({ name: 'inapp_browser_detected', app: browser.app ?? 'unknown' })
       return
     }
 

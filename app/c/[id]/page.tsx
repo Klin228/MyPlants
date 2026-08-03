@@ -16,6 +16,7 @@ import { unstable_noStore as noStore } from 'next/cache'
 import { sql } from '@/lib/server/db'
 import { formatCalendarDate } from '@/lib/dates'
 import { countSpecies, describeCollection } from '@/lib/collectionSummary'
+import PublicPageBeacon from '@/components/PublicPageBeacon'
 import type { SnapshotPhoto } from '@/lib/sharing/types'
 
 /**
@@ -203,7 +204,12 @@ export default async function CollectionPage({ params }: PageProps) {
       )}
 
       <footer className="showcase-footer">
-        <a href="/">Made with MyPlants — build your own collection</a>
+        {/*
+          Ссылка отдана клиентскому компоненту ради двух событий воронки. Сама
+          ссылка при этом по-прежнему приезжает в серверной разметке — такой
+          компонент отрисовывается и на сервере.
+        */}
+        <PublicPageBeacon />
       </footer>
     </div>
   )

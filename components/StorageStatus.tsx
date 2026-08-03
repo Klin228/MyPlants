@@ -21,6 +21,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Download, HardDrive, Link2, Upload, X } from 'lucide-react'
+import { track } from '@/lib/analytics'
 import { createBackup, restoreBackup } from '@/lib/backup'
 import {
   previewPublication,
@@ -40,6 +41,9 @@ import {
 
 /** Отметка «подсказку про установку видел». */
 const HINT_DISMISSED_KEY = 'myplants-install-hint-dismissed'
+
+/** Отметка «уже засчитали установку»: событие нужно один раз за устройство. */
+const INSTALLED_KEY = 'myplants-installed-counted'
 
 interface State {
   usage: StorageUsage | null
@@ -87,6 +91,22 @@ export default function StorageStatus({ onRestored }: StorageStatusProps) {
     })
 
     setHintDismissed(localStorage.getItem(HINT_DISMISSED_KEY) === '1')
+
+    /*
+     * Факт установки на домашний экран напрямую не отследить: системного
+     * события об этом нет ни на iOS, ни в нашем случае на Android — мы даём
+     * инструкцию, а не вызываем приглашение. Зато видно следствие: приложение
+     * однажды открылось как установленное. Отмечаем один раз за устройство.
+     */
+    if (isStandalone() && localStorage.getItem(INSTALLED_KEY) === null) {
+      localStorage.setItem(INSTALLED_KEY, '1')
+      track({ name: 'a2hs_confirmed', platform: platform === 'ios' ? 'ios' : 'android' })
+    }
+
+    // Подсказку показали — знаменатель для предыдущего события
+    if (offerInstall && localStorage.getItem(HINT_DISMISSED_KEY) !== '1') {
+      track({ name: 'a2hs_prompt_shown', platform: platform === 'ios' ? 'ios' : 'android' })
+    }
 
     return () => {
       cancelled = true
@@ -141,8 +161,10 @@ export default function StorageStatus({ onRestored }: StorageStatusProps) {
       if (missingPhotos.length > 0) parts.push(`photos missing for: ${missingPhotos.join(', ')}`)
       setBackup(`${parts.join('. ')}.`)
 
+      track({ name: 'restore_attempted', source: 'file', ok: added > 0 })
       if (added > 0) onRestored()
     } catch (error) {
+      track({ name: 'restore_attempted', source: 'file', ok: false })
       console.error('Не удалось восстановить из копии:', error)
       setBackup(error instanceof Error ? error.message : 'Could not read the file')
     } finally {
@@ -182,11 +204,13 @@ export default function StorageStatus({ onRestored }: StorageStatusProps) {
       if (photoFailures.length > 0) parts.push(`some photos failed for: ${photoFailures.join(', ')}`)
       setBackup(`${parts.join('. ')}.`)
 
+      track({ name: 'restore_attempted', source: 'publication', ok: added > 0 })
       setPreview(null)
       setLinkOpen(false)
       setLink('')
       if (added > 0) onRestored()
     } catch (error) {
+      track({ name: 'restore_attempted', source: 'publication', ok: false })
       console.error('Не удалось восстановить из публикации:', error)
       setBackup(error instanceof Error ? error.message : 'Could not restore from the link')
     } finally {
