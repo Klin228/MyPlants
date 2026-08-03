@@ -129,12 +129,32 @@
   --photo-ratio: 1 / 1;
 
   /*
+   * Безопасные отступы устройства — вырез, скруглённые углы, полоса жестов.
+   *
+   * Работают только вместе с `viewportFit: 'cover'` в `app/layout.tsx`: без него
+   * браузер сам держит контент внутри безопасной области, а `env()` отдаёт нули.
+   * Именно так и было до тикета X1 — обращения к инсетам в коде уже стояли и
+   * ровно ничего не делали.
+   *
+   * Запасное значение `0px` обязательно: `env()` без него в браузере, который не
+   * знает этой переменной, делает всё объявление недействительным — то есть
+   * отступ пропадёт вовсе, а не станет нулевым.
+   *
+   * Ниже они применяются не как «отступ = инсет», а как `max(обычный, инсет)`:
+   * на устройстве без выреза геометрия обязана остаться прежней.
+   */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /*
    * Плавающая кнопка добавления: отступ от низа и место, которое она занимает.
    * Раньше это были два числа, согласованные вручную с высотой панели, —
    * padding-bottom: 5.5rem у .page и bottom: 6rem у .toast, — и ни одно из них
    * эту высоту не измеряло.
    */
-  --fab-bottom: max(var(--space-xl), env(safe-area-inset-bottom));
+  --fab-bottom: max(var(--space-xl), var(--safe-bottom));
   --fab-reserve: calc(var(--fab-bottom) + var(--tap-target));
 }
 
@@ -234,7 +254,11 @@ body {
 
 /* Главная: лента карточек */
 .page {
-  padding: var(--space-lg);
+  /* Верх и бока по безопасной области: в портрете это вырез, в ландшафте —
+     скруглённые углы и та же полоса выреза, ушедшая на сторону. */
+  padding-top: max(var(--space-lg), var(--safe-top));
+  padding-right: max(var(--space-lg), var(--safe-right));
+  padding-left: max(var(--space-lg), var(--safe-left));
   padding-bottom: calc(var(--fab-reserve) + var(--space-xl));
   max-width: 1200px;
   margin: 0 auto;
@@ -255,7 +279,10 @@ body {
   top: 0;
   background-color: var(--color-surface);
   border-bottom: 1px solid var(--color-border-soft);
-  padding: var(--space-lg);
+  /* Липкая шапка стоит под вырезом, поэтому верхний инсет уходит в её же
+     padding: заливка продолжается под вырез, а содержимое остаётся ниже. */
+  padding: max(var(--space-lg), var(--safe-top)) max(var(--space-lg), var(--safe-right))
+    var(--space-lg) max(var(--space-lg), var(--safe-left));
   display: flex;
   align-items: center;
   gap: var(--space-lg);
@@ -655,7 +682,10 @@ body {
 .form-actions {
   display: flex;
   gap: var(--space-md);
-  padding: var(--space-lg);
+  /* Нижний инсет — иначе кнопки уезжают под полосу жестов. Вариант `--plain`
+     ниже перебивает padding целиком: в диалоге эта панель не у края экрана. */
+  padding: var(--space-lg) max(var(--space-lg), var(--safe-right))
+    max(var(--space-lg), var(--safe-bottom)) max(var(--space-lg), var(--safe-left));
   border-top: 1px solid var(--color-border-soft);
   background-color: var(--color-surface);
 }
@@ -785,7 +815,8 @@ body {
   bottom: var(--fab-bottom);
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 var(--space-lg);
+  /* В ландшафте кнопка иначе прижимается к вырезу сбоку */
+  padding: 0 max(var(--space-lg), var(--safe-right)) 0 max(var(--space-lg), var(--safe-left));
   display: flex;
   justify-content: flex-end;
   pointer-events: none;
@@ -1013,7 +1044,7 @@ body {
 }
 
 .viewer-close {
-  top: max(var(--space-lg), env(safe-area-inset-top));
+  top: max(var(--space-lg), var(--safe-top));
   right: var(--space-lg);
 }
 
@@ -1050,7 +1081,7 @@ body {
 
 .viewer-counter {
   position: absolute;
-  bottom: max(var(--space-xl), env(safe-area-inset-bottom));
+  bottom: max(var(--space-xl), var(--safe-bottom));
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -1499,7 +1530,10 @@ body {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding: var(--space-lg);
+  /* Диалог прижат к низу, значит нижний инсет обязателен; верхний нужен, когда
+     диалог высокий и упирается в вырез. */
+  padding: max(var(--space-lg), var(--safe-top)) max(var(--space-lg), var(--safe-right))
+    max(var(--space-lg), var(--safe-bottom)) max(var(--space-lg), var(--safe-left));
   background-color: var(--color-scrim);
   z-index: 1000;
   overflow-y: auto;
@@ -1600,7 +1634,9 @@ body {
 .showcase {
   max-width: 1200px;
   margin: 0 auto;
-  padding: var(--space-xl) var(--space-lg) var(--space-3xl);
+  /* Витрину гость открывает в своём браузере, и вырез у него свой */
+  padding: max(var(--space-xl), var(--safe-top)) max(var(--space-lg), var(--safe-right))
+    max(var(--space-3xl), var(--safe-bottom)) max(var(--space-lg), var(--safe-left));
 }
 
 .showcase-header {
