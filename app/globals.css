@@ -962,6 +962,18 @@ body {
   position: relative;
 }
 
+/*
+ * Лента занимает высоту родителя, а не держит пропорцию (тикет G3).
+ *
+ * Нужно экрану растения: там высоту задаёт раскладка. `aspect-ratio: auto`
+ * обязателен — без него пропорция продолжает участвовать в расчёте высоты и
+ * побеждает.
+ */
+.gallery--fill {
+  height: 100%;
+  aspect-ratio: auto;
+}
+
 /* Та же пропорция, что у загруженной фотографии: место не должно меняться */
 .gallery-empty {
   width: 100%;
@@ -1335,6 +1347,144 @@ body {
   flex-shrink: 0;
   width: 32px;
   height: 32px;
+}
+
+/* ---------- Экран растения ---------- */
+
+/*
+ * Фотографии почти во весь экран, всё остальное — на плашке снизу (тикет G3).
+ *
+ * До этого тикета у растения не было своей страницы вовсе: вся информация жила в
+ * карточке, и карточка от этого разрослась настолько, что в две колонки не влезала.
+ * Теперь карточка показывает фотографию, а разглядывают растение здесь.
+ *
+ * `overflow: hidden` у экрана и `min-height: 0` у области фотографий — пара, без
+ * которой флекс-колонка не сжимается: по умолчанию элемент флекса не может стать
+ * меньше своего содержимого, и лента фотографий выдавила бы плашку за экран.
+ */
+.plant-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--color-bg);
+}
+
+.plant-photos {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background-color: var(--color-surface-empty);
+}
+
+/*
+ * Кнопка «назад» лежит поверх фотографии, поэтому она стеклянная — как крестик
+ * в полноэкранном просмотре, и по той же причине: под ней может оказаться и
+ * светлый, и тёмный кадр. Верхний инсет — из X1.
+ */
+.plant-back {
+  position: absolute;
+  top: max(var(--space-lg), var(--safe-top));
+  left: var(--space-lg);
+  z-index: 2;
+}
+
+/*
+ * Плашка со всем текстом.
+ *
+ * Наезжает на фотографию скруглёнными углами — так на референсе, и так видно,
+ * что фотография продолжается под ней, а не обрезана. Прокручивается сама:
+ * заметки бывают длинными, а экран трогать нельзя, иначе фотография уедет.
+ *
+ * `max-height` в процентах от экрана, а не в пикселях: на маленьком телефоне
+ * плашка не должна съедать фотографию целиком.
+ */
+.plant-sheet {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  margin-top: calc(-1 * var(--space-xl));
+  /*
+   * Предел высоты — 40% экрана, и это замеренное число, а не выбранное на глаз.
+   * Сначала стояло 55%, и на длинной заметке плашка растягивалась до предела,
+   * оставляя фотографии 43% экрана вместо двух третей, ради которых экран и
+   * задуман. При 40% фотографии остаётся не меньше 60% плюс наезд скруглением.
+   */
+  max-height: 40%;
+  padding: var(--space-xl) max(var(--space-lg), var(--safe-right))
+    max(var(--space-lg), var(--safe-bottom)) max(var(--space-lg), var(--safe-left));
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background-color: var(--color-surface);
+}
+
+/*
+ * Прокручивается только текст, а ряд действий остаётся на месте.
+ *
+ * Сначала прокручивалась вся плашка целиком, и на длинной заметке кнопки Edit и
+ * Delete уходили за нижний край — до них надо было домотать, хотя они и есть
+ * причина, по которой плашку открывают. `min-height: 0` обязателен: без него
+ * элемент флекса не сжимается меньше содержимого и прокрутка не включается.
+ */
+.plant-sheet-body {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.plant-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 900;
+  line-height: 1.05;
+  color: var(--color-text);
+}
+
+.plant-species {
+  margin: var(--space-xs) 0 0 0;
+  font-size: var(--text-md);
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+
+.plant-price {
+  margin: var(--space-md) 0 0 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 900;
+  color: var(--color-text);
+}
+
+.plant-meta {
+  margin: var(--space-sm) 0 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+/* Заметки — свободный текст, и переносы в нём человек ставил сам */
+.plant-notes {
+  margin: var(--space-lg) 0 0 0;
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-border-soft);
+  font-size: var(--text-md);
+  line-height: 1.5;
+  color: var(--color-text);
+  white-space: pre-wrap;
+}
+
+.plant-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-top: var(--space-xl);
+}
+
+/* Вопрос подтверждения занимает место кнопок, а не добавляется под ними: иначе
+   плашка подпрыгивает и уводит текст из-под пальца. */
+.plant-actions-question {
+  margin-right: auto;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
 }
 
 /* ---------- Всплывающее сообщение ---------- */
