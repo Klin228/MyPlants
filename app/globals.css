@@ -620,17 +620,41 @@ body {
   color: var(--color-text-muted);
 }
 
+/*
+ * Лента и слайды размечены флексами, а не процентами.
+ *
+ * Раньше ширина ленты считалась в JS как `N * 100%`, а каждого слайда — как
+ * `100 / N`%, и сдвиг брался долей от этой ширины. Работало, но при каждом
+ * изменении числа фотографий приходилось пересчитывать три связанных числа.
+ * Слайд шириной в контейнер и сдвиг на `-index * 100%` дают то же самое и не
+ * зависят от количества.
+ *
+ * `transition` здесь не задаётся: им управляет компонент — во время жеста
+ * лента обязана идти за пальцем без сглаживания.
+ */
 .gallery-track {
   display: flex;
-  transition: transform 0.3s ease-out;
+  height: 100%;
 }
 
 .gallery-slide {
-  flex-shrink: 0;
+  flex: 0 0 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+}
+
+/* Ключ фотографии есть, а блоба под ним нет */
+.gallery-missing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: var(--space-lg);
+  font-size: var(--text-sm);
+  color: var(--color-text-subtle);
+  text-align: center;
 }
 
 .gallery-slide img {
@@ -653,7 +677,15 @@ body {
   z-index: 10;
 }
 
+/*
+ * Ширина точки задаётся здесь, а не инлайном из компонента.
+ *
+ * Раньше она приезжала пропом стиля: активная 24px, остальные 8px. Инлайн в
+ * этом проекте оставлен под покадровые значения жеста, а здесь состояний ровно
+ * два и оба статические — место им в стилях.
+ */
 .gallery-dot {
+  width: 8px;
   height: 8px;
   padding: 0;
   border: none;
@@ -664,6 +696,7 @@ body {
 }
 
 .gallery-dot--active {
+  width: 24px;
   background-color: var(--color-dot-active);
 }
 
