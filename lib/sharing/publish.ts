@@ -7,6 +7,7 @@
 
 import type { Plant } from '../models/plant'
 import { buildSnapshotDraft } from './buildSnapshot'
+import { validateDraft } from './limits'
 import { forgetPublication, readPublication, savePublication, type Publication } from './publication'
 import { uploadDraftPhotos, type UploadCallbacks, type UploadProgress } from './uploadPhotos'
 import type { PublishOptions } from './types'
@@ -56,6 +57,18 @@ export async function publishCollection(
   if (draft.plants.length === 0) {
     throw new Error('Nothing to publish: none of the plants has a photo')
   }
+
+  /*
+   * Пределы проверяются здесь — до `uploadDraftPhotos`, а не только на сервере
+   * после него.
+   *
+   * Порядок был обратный, и коллекция из 101 растения означала несколько минут
+   * уменьшения, десятки мегабайт трафика и «Too many plants» в конце. Файлы при
+   * этом уже лежали в хранилище и не удалялись ничем (X6). Проверка идёт до
+   * `publish_started`: работа не началась, и записывать начало нечего.
+   */
+  const check = validateDraft(draft)
+  if (!check.ok) throw new Error(check.error)
 
   const uploadCallbacks: UploadCallbacks = {
     signal,

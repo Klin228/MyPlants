@@ -3,10 +3,12 @@
 // Подписи здесь английские — как и во всём остальном интерфейсе. Смесь языков
 // разбирается целиком в тикете D7, и плодить исключения до него незачем.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Check, Copy, Share2, X } from 'lucide-react'
 import type { Plant } from '@/lib/models/plant'
 import { DEFAULT_PUBLISH_OPTIONS, type PublishOptions } from '@/lib/sharing/types'
+import { buildSnapshotDraft } from '@/lib/sharing/buildSnapshot'
+import { validateDraft } from '@/lib/sharing/limits'
 import { publishCollection, revokePublication, type PublishProgress } from '@/lib/sharing/publish'
 import { publicationUrl, readPublication, type Publication } from '@/lib/sharing/publication'
 
@@ -63,6 +65,27 @@ export default function ShareDialog({ plants, onClose }: ShareDialogProps) {
   const withoutPhotos = plants.filter((plant) => !plant.photos || plant.photos.length === 0).length
   const publishable = plants.length - withoutPhotos
   const busy = (progress !== null && result === null) || revoking
+
+  /**
+   * Что мешает опубликовать — до нажатия, а не после.
+   *
+   * `publishCollection` проверяет то же самое и остаётся последним словом, но
+   * узнавать о превышении предела из сообщения об ошибке — значит нажать кнопку
+   * и получить отказ. Здесь то же самое видно заранее, и кнопка выключена.
+   *
+   * Считается через ту же сборку заготовки, что и настоящая публикация: набор
+   * полей зависит от галочек, и проверять надо именно то, что уедет. Заготовка
+   * это перебор коллекции без чтения блобов — на сотне растений дешевле, чем
+   * перерисовка диалога.
+   */
+  const blocked = useMemo(() => {
+    if (publishable === 0) return null
+
+    const { draft } = buildSnapshotDraft(plants, { title, options })
+    const check = validateDraft(draft)
+
+    return check.ok ? null : check.error ?? 'This collection cannot be published'
+  }, [plants, title, options, publishable])
 
   const toggle = (key: keyof PublishOptions) =>
     setOptions((current) => ({ ...current, [key]: !current[key] }))
@@ -259,13 +282,19 @@ export default function ShareDialog({ plants, onClose }: ShareDialogProps) {
               </div>
             )}
 
+            {blocked && !error && <p className="share-error">{blocked}</p>}
+
             {error && <p className="share-error">{error}</p>}
 
             <div className="form-actions form-actions--plain">
               <button onClick={onClose} className="btn btn--secondary" disabled={busy}>
                 Cancel
               </button>
-              <button onClick={publish} className="btn btn--primary" disabled={busy || publishable === 0}>
+              <button
+                onClick={publish}
+                className="btn btn--primary"
+                disabled={busy || publishable === 0 || blocked !== null}
+              >
                 {busy ? 'Publishing…' : existing ? 'Update' : 'Publish'}
               </button>
             </div>

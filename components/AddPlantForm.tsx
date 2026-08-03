@@ -5,6 +5,15 @@ import { X } from 'lucide-react'
 import type { NewPlant, Plant } from '@/lib/models/plant'
 import { photosRepository } from '@/lib/repositories/photosRepository'
 import { LOCAL_PHOTO_MAX_SIZE, resizeToJpeg } from '@/lib/images'
+/*
+ * Пределы формы — те же, что у публикации, и берутся оттуда же.
+ *
+ * Своих чисел здесь нет намеренно: разойдись они, и человек спокойно набрал бы
+ * заметку, которую потом невозможно опубликовать, — узнав об этом через месяц,
+ * при попытке поделиться. Ограничение в поле дешевле любого сообщения об
+ * ошибке. Найдено ревью F3 (тикет X9).
+ */
+import { LIMITS } from '@/lib/sharing/limits'
 import { SPECIES_CATALOG } from '@/lib/data/speciesCatalog'
 import { buildSpeciesSuggestions, looksLikeBinomial, normalizeSpeciesInput } from '@/lib/species'
 import { todayAsDateInput } from '@/lib/dates'
@@ -223,6 +232,28 @@ export default function AddPlantForm({
     }
 
     /*
+     * Больше предела фотографий не берём.
+     *
+     * `processing` учитывается наравне с уже готовыми превью: уменьшение идёт
+     * асинхронно, и без него два быстрых выбора по шесть снимков дали бы
+     * двенадцать — та же ошибка, от которой защищается отправка формы.
+     */
+    const room = LIMITS.photosPerPlant - photoPreviews.length - processing
+    if (room <= 0) {
+      alert(`At most ${LIMITS.photosPerPlant} photos per plant. Remove one to add another.`)
+      e.target.value = ''
+      return
+    }
+
+    const accepted = imageFiles.slice(0, room)
+    if (accepted.length < imageFiles.length) {
+      alert(
+        `At most ${LIMITS.photosPerPlant} photos per plant, so ${accepted.length} of ` +
+          `${imageFiles.length} selected will be added.`
+      )
+    }
+
+    /*
      * Каждая фотография уменьшается ДО записи в базу, а не после.
      *
      * Здесь была главная нестыковка проекта: `CLAUDE.md` утверждал, что все
@@ -234,9 +265,9 @@ export default function AddPlantForm({
      * Превью берётся из уже уменьшенного блоба, а не из исходника: показывать
      * восьмимегабайтный кадр в плитке 100 пикселей незачем.
      */
-    setProcessing((count) => count + imageFiles.length)
+    setProcessing((count) => count + accepted.length)
 
-    Promise.allSettled(imageFiles.map((file) => resizeToJpeg(file, LOCAL_PHOTO_MAX_SIZE)))
+    Promise.allSettled(accepted.map((file) => resizeToJpeg(file, LOCAL_PHOTO_MAX_SIZE)))
       .then((results) => {
         const added: PhotoPreview[] = []
         let failed = 0
@@ -262,7 +293,7 @@ export default function AddPlantForm({
         }
       })
       .finally(() => {
-        setProcessing((count) => Math.max(0, count - imageFiles.length))
+        setProcessing((count) => Math.max(0, count - accepted.length))
         e.target.value = ''
       })
   }
@@ -316,6 +347,13 @@ export default function AddPlantForm({
     const parsedPrice = parseFloat(price)
     if (isNaN(parsedPrice) || parsedPrice < 0) {
       alert('Please enter a price (0 or more)')
+      return
+    }
+
+    // Верхняя граница та же, что у публикации: `maxLength` цену не ограничивает,
+    // а `1e308` в поле — это не жадность, а мусор, который потом не уедет.
+    if (parsedPrice > LIMITS.maxPrice) {
+      alert(`That price is too large. At most ${LIMITS.maxPrice.toLocaleString('en-US')}.`)
       return
     }
 
@@ -384,6 +422,7 @@ export default function AddPlantForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="field-input"
+            maxLength={LIMITS.name}
             required
           />
         </div>
@@ -399,6 +438,7 @@ export default function AddPlantForm({
             onChange={(e) => setSpecies(e.target.value)}
             className="field-input"
             list="species-suggestions"
+            maxLength={LIMITS.species}
             placeholder="Monstera deliciosa"
             autoComplete="off"
             autoCapitalize="off"
@@ -477,13 +517,16 @@ export default function AddPlantForm({
             multiple
             onChange={handleFileChange}
             className="field-input field-input--file"
+            disabled={photoPreviews.length + processing >= LIMITS.photosPerPlant}
           />
           <p className="field-hint" aria-live="polite">
             {processing > 0
               ? `Preparing ${processing} ${processing === 1 ? 'photo' : 'photos'}…`
               : photoPreviews.length === 0
                 ? 'Upload at least one photo'
-                : `You can add more photos (${photoPreviews.length} ${photoPreviews.length === 1 ? 'photo' : 'photos'} added)`}
+                : photoPreviews.length >= LIMITS.photosPerPlant
+                  ? `All ${LIMITS.photosPerPlant} photos added — that is the most one plant can have`
+                  : `You can add more photos (${photoPreviews.length} ${photoPreviews.length === 1 ? 'photo' : 'photos'} added)`}
           </p>
         </div>
 
@@ -495,6 +538,7 @@ export default function AddPlantForm({
             type="number"
             step="0.01"
             min="0"
+            max={LIMITS.maxPrice}
             value={price}
             onChange={(e) => setPrice(e.target.value)}
             className="field-input"
@@ -526,6 +570,7 @@ export default function AddPlantForm({
             value={source}
             onChange={(e) => setSource(e.target.value)}
             className="field-input"
+            maxLength={LIMITS.source}
             placeholder="Nursery, shop, a friend…"
           />
         </div>
@@ -537,6 +582,7 @@ export default function AddPlantForm({
             onChange={(e) => setNotes(e.target.value)}
             rows={4}
             className="field-input field-input--area"
+            maxLength={LIMITS.notes}
             placeholder="Add any notes about this plant…"
           />
         </div>
