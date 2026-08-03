@@ -20,6 +20,10 @@
 // половина клиентского протокола загрузки, а не клиентский код.
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client'
 import { NextResponse } from 'next/server'
+// Адрес хранилища выводится из `BLOB_STORE_ID` — как и зачем, объяснено в модуле
+// уборки. Своя копия этой функции жила здесь и в маршруте отзыва; третья
+// понадобилась уборке, и вместо третьей копии функция стала общей (тикет X6).
+import { publicBlobBaseUrl } from '@/lib/server/blobCleanup'
 import { isPublicPhotoPath, MAX_PUBLIC_PHOTO_BYTES } from '@/lib/sharing/photoPaths'
 
 /** Сколько путей проверяем за один запрос: столько же, сколько фотографий в разумной коллекции. */
@@ -27,24 +31,6 @@ const MAX_PATHS_PER_CHECK = 200
 
 /** Сколько ждём ответа хранилища о существовании одного файла. */
 const HEAD_TIMEOUT_MS = 5_000
-
-/**
- * Адрес, по которому хранилище отдаёт публичные файлы.
- *
- * Выводится из `BLOB_STORE_ID`: `store_Qp5MPvSlboWmbt6A` соответствует хосту
- * `qp5mpvslbowmbt6a.public.blob.vercel-storage.com`. Соответствие проверено на
- * ответе самого хранилища, но Vercel его не документирует — поэтому при любой
- * неожиданности возвращаем null, и проверка существования просто отключается.
- */
-function publicBlobBaseUrl(): string | null {
-  const storeId = process.env.BLOB_STORE_ID
-  if (!storeId) return null
-
-  const host = storeId.replace(/^store_/, '').toLowerCase()
-  if (!/^[a-z0-9]+$/.test(host)) return null
-
-  return `https://${host}.public.blob.vercel-storage.com`
-}
 
 export async function POST(request: Request): Promise<NextResponse> {
   // Проверяем до вызова пакета. Без токена он отвечает `400` с текстом про

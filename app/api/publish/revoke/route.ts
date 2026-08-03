@@ -12,9 +12,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
+import { deleteUnreferencedBlobs } from '@/lib/server/blobCleanup'
 import { sha256Hex, sql } from '@/lib/server/db'
-
-const BLOB_API = 'https://blob.vercel-storage.com'
 
 interface RevokeRequest {
   collectionId?: unknown
@@ -88,10 +87,13 @@ export async function POST(request: Request): Promise<NextResponse> {
  * Удалить фотографии коллекции — но только те, которыми больше никто не
  * пользуется.
  *
- * Путь фотографии это хеш её содержимого, поэтому две коллекции с одинаковым
- * снимком ссылаются на один и тот же файл. Удалить его вслепую значит выбить
- * картинку из чужой живой публикации. Отсюда сверка со всеми остальными
- * коллекциями перед удалением.
+ * Само правило и работа с хранилищем живут в `lib/server/blobCleanup.ts`: тем же
+ * правилом теперь пользуются обновление публикации и отказ публикации на
+ * середине (тикет X6). Здесь остаётся только «какие пути считать своими».
+ *
+ * `exceptCollection` обязателен: строки растений этой коллекции на момент вызова
+ * ещё на месте, и без исключения каждый файл выглядел бы используемым — самой
+ * отзываемой коллекцией.
  *
  * @returns сколько файлов удалено
  */
@@ -106,59 +108,8 @@ async function deletePhotos(collectionId: string): Promise<number> {
 
   if (mine.length === 0) return 0
 
-  const others = (await db`
-    select distinct jsonb_array_elements(cp.photos)->>'path' as path
-    from collection_plants cp
-    join collections c on c.id = cp.collection_id
-    where cp.collection_id <> ${collectionId}
-      and c.revoked_at is null
-  `) as { path: string }[]
-
-  const stillUsed = new Set(others.map((row) => row.path))
-  const toDelete = mine.map((row) => row.path).filter((path) => !stillUsed.has(path))
-
-  if (toDelete.length === 0) return 0
-
-  const token = process.env.BLOB_READ_WRITE_TOKEN
-  if (!token) {
-    // Данные уже недоступны, а файлы остались висеть. Публикация от этого не
-    // воскресает — путь угадать нельзя, — но место в хранилище занято.
-    console.error('BLOB_READ_WRITE_TOKEN не задан: файлы отозванной коллекции остались в хранилище')
-    return 0
-  }
-
-  const base = publicBlobBaseUrl()
-  if (!base) {
-    console.error('Не удалось определить адрес хранилища: файлы отозванной коллекции остались')
-    return 0
-  }
-
-  const response = await fetch(`${BLOB_API}/delete`, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ urls: toDelete.map((path) => `${base}/${path}`) }),
-    signal: AbortSignal.timeout(15_000),
-  })
-
-  const body = await response.text()
-
-  if (!response.ok) {
-    // Отзыв всё равно состоялся: страница отдаёт 404, данные из базы убраны.
-    // Ронять запрос из-за оставшихся файлов значило бы сказать владельцу
-    // «не получилось» там, где получилось главное.
-    console.error(`Не удалось удалить файлы из хранилища: HTTP ${response.status} ${body.slice(0, 200)}`)
-    return 0
-  }
-
-  console.log(`Отзыв ${collectionId}: удалено файлов ${toDelete.length}, ответ ${body.slice(0, 200)}`)
-
-  return toDelete.length
-}
-
-function publicBlobBaseUrl(): string | null {
-  const storeId = process.env.BLOB_STORE_ID
-  if (!storeId) return null
-
-  const host = storeId.replace(/^store_/, '').toLowerCase()
-  return /^[a-z0-9]+$/.test(host) ? `https://${host}.public.blob.vercel-storage.com` : null
+  return deleteUnreferencedBlobs(
+    mine.map((row) => row.path),
+    { exceptCollection: collectionId, reason: `отзыв ${collectionId}` }
+  )
 }

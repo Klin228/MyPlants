@@ -70,54 +70,101 @@ export async function publishCollection(
   const check = validateDraft(draft)
   if (!check.ok) throw new Error(check.error)
 
+  /*
+   * Что эта попытка успела залить в хранилище.
+   *
+   * Собирается по ходу, а не в конце: если публикация сорвётся на середине
+   * загрузки, в конец мы не попадём — а убрать за собой надо именно то, что
+   * уехало (тикет X6).
+   */
+  const uploaded: string[] = []
+
   const uploadCallbacks: UploadCallbacks = {
     signal,
     onProgress: (progress) => onProgress?.({ ...progress, stage: progress.phase }),
+    onUploaded: (path) => uploaded.push(path),
   }
 
   track({ name: 'publish_started', plants: draft.plants.length })
 
-  const snapshot = await uploadDraftPhotos(draft, uploadCallbacks)
+  try {
+    const snapshot = await uploadDraftPhotos(draft, uploadCallbacks)
 
-  const photoCount = draft.plants.reduce((sum, plant) => sum + plant.photoKeys.length, 0)
-  onProgress?.({ stage: 'saving', done: photoCount, total: photoCount, reused: 0 })
+    const photoCount = draft.plants.reduce((sum, plant) => sum + plant.photoKeys.length, 0)
+    onProgress?.({ stage: 'saving', done: photoCount, total: photoCount, reused: 0 })
 
-  const existing = readPublication()
+    const existing = readPublication()
 
-  let saved = await send(snapshot, existing, signal)
+    let saved = await send(snapshot, existing, signal)
 
-  // Запись на устройстве может ссылаться на коллекцию, которой уже нет: её
-  // отозвали с другого устройства или удалили. Без этой ветки такой
-  // пользователь не смог бы опубликовать коллекцию больше никогда — сервер
-  // отвечал бы «не найдено» на каждую попытку обновить призрак.
-  if (!saved.ok && existing && (saved.status === 404 || saved.status === 403)) {
-    forgetPublication()
-    saved = await send(snapshot, null, signal)
+    // Запись на устройстве может ссылаться на коллекцию, которой уже нет: её
+    // отозвали с другого устройства или удалили. Без этой ветки такой
+    // пользователь не смог бы опубликовать коллекцию больше никогда — сервер
+    // отвечал бы «не найдено» на каждую попытку обновить призрак.
+    if (!saved.ok && existing && (saved.status === 404 || saved.status === 403)) {
+      forgetPublication()
+      saved = await send(snapshot, null, signal)
+    }
+
+    if (!saved.ok) {
+      throw new Error(saved.error ?? `Publishing failed (HTTP ${saved.status})`)
+    }
+
+    const { id, revokeToken } = saved
+
+    const publication: Publication = {
+      id,
+      revokeToken,
+      publishedAt: new Date().toISOString(),
+      options,
+      ...(title?.trim() ? { title: title.trim() } : {}),
+    }
+
+    savePublication(publication)
+
+    track({
+      name: 'publish_completed',
+      plants: draft.plants.length,
+      photos: draft.plants.reduce((sum, plant) => sum + plant.photoKeys.length, 0),
+    })
+
+    return { publication, skipped, updated: Boolean(existing) && saved.reusedExisting }
+  } catch (error) {
+    // Публикация не состоялась — просим сервер убрать залитое. Отдельно от
+    // `throw`: человек должен увидеть настоящую причину отказа, а не то, как
+    // прошла уборка.
+    await discardUploaded(uploaded)
+    throw error
   }
+}
 
-  if (!saved.ok) {
-    throw new Error(saved.error ?? `Publishing failed (HTTP ${saved.status})`)
+/**
+ * Попросить сервер убрать файлы сорвавшейся публикации.
+ *
+ * Ничего не выбрасывает и никого не ждёт дольше нужного: это уборка следов уже
+ * провалившегося действия. Решает сервер — он удалит только те пути, на которые
+ * не ссылается ни одна живая коллекция, поэтому список безопасно посылать целиком
+ * (см. `app/api/publish/photos/discard/route.ts`).
+ */
+async function discardUploaded(paths: string[]): Promise<void> {
+  if (paths.length === 0) return
+
+  try {
+    const response = await fetch('/api/publish/photos/discard', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ paths: [...new Set(paths)] }),
+    })
+
+    if (!response.ok) {
+      console.warn(`Не удалось убрать файлы сорванной публикации: HTTP ${response.status}`)
+    }
+  } catch (error) {
+    // Сеть могла отвалиться — она и была причиной отказа. Файлы останутся
+    // мусором в хранилище, но следующая публикация тех же фотографий их
+    // подберёт: путь это хеш содержимого.
+    console.warn('Не удалось убрать файлы сорванной публикации:', error)
   }
-
-  const { id, revokeToken } = saved
-
-  const publication: Publication = {
-    id,
-    revokeToken,
-    publishedAt: new Date().toISOString(),
-    options,
-    ...(title?.trim() ? { title: title.trim() } : {}),
-  }
-
-  savePublication(publication)
-
-  track({
-    name: 'publish_completed',
-    plants: draft.plants.length,
-    photos: draft.plants.reduce((sum, plant) => sum + plant.photoKeys.length, 0),
-  })
-
-  return { publication, skipped, updated: Boolean(existing) && saved.reusedExisting }
 }
 
 export interface RevokeResult {

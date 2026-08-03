@@ -38,6 +38,18 @@ export interface UploadCallbacks {
    * отправку одного файла нельзя, а вот не начинать следующую — можно.
    */
   signal?: AbortSignal
+  /**
+   * Путь только что уехал в хранилище.
+   *
+   * Нужен, чтобы сорвавшаяся публикация могла убрать за собой ровно то, что
+   * успела загрузить (тикет X6). Вызывается по факту загрузки, а не по итогу
+   * всей публикации: до итога дело может и не дойти — на этом и построена
+   * проблема.
+   *
+   * Уже лежавшие в хранилище пути сюда не попадают: их загрузил кто-то другой
+   * или та же публикация раньше, и убирать их этой попытке нечего.
+   */
+  onUploaded?: (path: string) => void
 }
 
 /** Подготовленная к загрузке фотография: уменьшенная, посчитанная, с путём. */
@@ -63,7 +75,7 @@ interface PreparedPhoto {
  */
 export async function uploadDraftPhotos(
   draft: CollectionSnapshotDraft,
-  { onProgress, signal }: UploadCallbacks = {}
+  { onProgress, signal, onUploaded }: UploadCallbacks = {}
 ): Promise<CollectionSnapshot> {
   const allKeys = draft.plants.flatMap((plant) => plant.photoKeys)
   const total = allKeys.length
@@ -128,6 +140,7 @@ export async function uploadDraftPhotos(
 
     const photo = byPath.get(path)!
     await putBlob(TOKEN_ENDPOINT, path, photo.blob, signal)
+    onUploaded?.(path)
 
     // Один путь может относиться к нескольким ключам — считаем все
     uploaded += countKeysForPaths(prepared, [path])

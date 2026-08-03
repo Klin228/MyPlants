@@ -12,6 +12,7 @@
 import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { newPublicId, newRevokeToken } from '@/lib/ids'
+import { deleteUnreferencedBlobs } from '@/lib/server/blobCleanup'
 import { sha256Hex, sql } from '@/lib/server/db'
 import { checkPublishRateLimit } from '@/lib/server/rateLimit'
 import { asSnapshot, LIMITS, validateSnapshot } from '@/lib/sharing/limits'
@@ -133,6 +134,11 @@ async function updateCollection(id: string, revokeToken: string, snapshot: Colle
     select revoke_token_hash, revoked_at from collections where id = ${id}
   `) as { revoke_token_hash: string; revoked_at: string | null }[]
   const existing = rows[0]
+  const previousPaths = (await db`
+    select distinct jsonb_array_elements(photos)->>'path' as path
+    from collection_plants
+    where collection_id = ${id}
+  `) as { path: string }[]
 
   // Отсутствующая и отозванная коллекции отвечают одинаково: подсказывать, что
   // такой id когда-то существовал, незачем.
@@ -170,6 +176,28 @@ async function updateCollection(id: string, revokeToken: string, snapshot: Colle
     db`delete from collection_plants where collection_id = ${id}`,
     ...plantInserts(db, id, snapshot),
   ])
+
+  /*
+   * Файлы, отвязанные этим обновлением, удаляются из хранилища.
+   *
+   * Это второй источник сирот из тикета X6: замена строк растений оставляла
+   * файлы удалённых растений в хранилище навсегда. Ни отзыв, ни следующее
+   * обновление их бы не убрали — отзыв смотрит только на текущие строки, а тех
+   * путей в них уже нет. То есть «опубликовал → удалил растение → опубликовал
+   * заново → отозвал» оставляло фотографию удалённого растения публично
+   * доступной, хотя диалог обещал, что фотографии удалены из хранилища.
+   *
+   * После транзакции, а не до: проверка ссылок должна видеть уже новый состав
+   * коллекции, иначе оставшиеся в ней фотографии выглядели бы отвязанными.
+   * Исключать коллекцию из проверки поэтому и не нужно.
+   *
+   * Отказ уборки не роняет обновление: снимок уже сохранён, и говорить владельцу
+   * «не получилось» из-за оставшегося файла — врать о главном.
+   */
+  await deleteUnreferencedBlobs(
+    previousPaths.map((row) => row.path),
+    { reason: `обновление ${id}` }
+  )
 
   return { id, revokeToken }
 }
