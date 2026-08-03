@@ -19,8 +19,9 @@
  * удобство: удобство человека не убедит, потеря коллекции убедит.
  */
 
-import { useEffect, useState } from 'react'
-import { HardDrive, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Download, HardDrive, Upload, X } from 'lucide-react'
+import { createBackup, restoreBackup } from '@/lib/backup'
 import {
   detectInAppBrowser,
   detectPlatform,
@@ -43,9 +44,18 @@ interface State {
   offerInstall: boolean
 }
 
-export default function StorageStatus() {
+interface StorageStatusProps {
+  /** Вызывается после восстановления: коллекцию на экране надо перечитать. */
+  onRestored: () => void
+}
+
+export default function StorageStatus({ onRestored }: StorageStatusProps) {
   const [state, setState] = useState<State | null>(null)
   const [hintDismissed, setHintDismissed] = useState(false)
+  /** `null` — ничего не делаем; строка — что сейчас идёт или чем кончилось. */
+  const [backup, setBackup] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const fileInput = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -83,6 +93,53 @@ export default function StorageStatus() {
 
   const showHint = state.offerInstall && !hintDismissed
 
+  const save = async () => {
+    setBusy(true)
+    setBackup('Preparing the backup…')
+    try {
+      const { blob, filename, plants, photos } = await createBackup(new Date())
+
+      /*
+       * Скачивание через object URL и невидимую ссылку — единственный способ
+       * отдать файл, который мы собрали в памяти. Указатель освобождается
+       * сразу: браузер к этому моменту уже забрал данные.
+       */
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      link.click()
+      URL.revokeObjectURL(url)
+
+      setBackup(`Saved ${plants} ${plants === 1 ? 'plant' : 'plants'} and ${photos} ${photos === 1 ? 'photo' : 'photos'} to ${filename}`)
+    } catch (error) {
+      console.error('Не удалось собрать резервную копию:', error)
+      setBackup(error instanceof Error ? error.message : 'Could not save the backup')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const restore = async (file: File) => {
+    setBusy(true)
+    setBackup('Reading the file…')
+    try {
+      const { added, skipped, photos, missingPhotos } = await restoreBackup(file)
+
+      const parts = [`Restored ${added} ${added === 1 ? 'plant' : 'plants'} with ${photos} ${photos === 1 ? 'photo' : 'photos'}`]
+      if (skipped > 0) parts.push(`${skipped} already here`)
+      if (missingPhotos.length > 0) parts.push(`photos missing for: ${missingPhotos.join(', ')}`)
+      setBackup(`${parts.join('. ')}.`)
+
+      if (added > 0) onRestored()
+    } catch (error) {
+      console.error('Не удалось восстановить из копии:', error)
+      setBackup(error instanceof Error ? error.message : 'Could not read the file')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <section className="storage" aria-label="Storage">
       <p className="storage-line">
@@ -104,6 +161,45 @@ export default function StorageStatus() {
           {state.persisted === true && ', marked as persistent'}
         </span>
       </p>
+
+      <div className="storage-actions">
+        <button type="button" onClick={save} className="btn btn--quiet" disabled={busy}>
+          <Download size={16} aria-hidden="true" />
+          Save a backup
+        </button>
+        <button
+          type="button"
+          onClick={() => fileInput.current?.click()}
+          className="btn btn--quiet"
+          disabled={busy}
+        >
+          <Upload size={16} aria-hidden="true" />
+          Restore from file
+        </button>
+        {/*
+          Поле выбора файла спрятано, а не размечено кнопкой: у него свой
+          системный вид, который не сводится к остальным кнопкам, а сбрасывать
+          `value` всё равно нужно вручную — иначе повторный выбор того же файла
+          не вызовет события.
+        */}
+        <input
+          ref={fileInput}
+          type="file"
+          accept=".zip,application/zip"
+          className="storage-file"
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            event.target.value = ''
+            if (file) restore(file)
+          }}
+        />
+      </div>
+
+      {backup && (
+        <p className="storage-result" aria-live="polite">
+          {backup}
+        </p>
+      )}
 
       {showHint && (
         <div className="storage-hint">

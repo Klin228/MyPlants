@@ -100,6 +100,42 @@ export async function create(data: NewPlant): Promise<Plant> {
 }
 
 /**
+ * Записать растение как есть — со своим id и своими датами.
+ *
+ * Отдельно от `create`, потому что `create` намеренно проставляет id и даты
+ * сам: вызывающий код не должен их сочинять. У восстановления из резервной
+ * копии задача обратная — вернуть запись такой, какой она была, иначе после
+ * восстановления собьётся сортировка по дате добавления, а повторный импорт
+ * того же файла заведёт дубли вместо того, чтобы ничего не сделать.
+ *
+ * `add`, а не `put`: существующую запись не перезаписываем, о занятом id
+ * сообщаем вызывающему.
+ *
+ * @returns `false`, если растение с таким id уже есть
+ */
+export async function restore(plant: Plant): Promise<boolean> {
+  const db = await initDB()
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([STORES.PLANTS], 'readwrite')
+    const request = transaction.objectStore(STORES.PLANTS).add(plant)
+
+    request.onsuccess = () => resolve(true)
+    request.onerror = () => {
+      // Занятый id — не ошибка восстановления, а «это растение уже здесь»
+      if (request.error?.name === 'ConstraintError') {
+        // Иначе транзакция прервётся и уронит остальные записи
+        request.transaction?.abort()
+        resolve(false)
+        return
+      }
+      console.error('Error restoring plant:', request.error)
+      reject(request.error)
+    }
+  })
+}
+
+/**
  * Update an existing plant
  * 
  * @param id - The plant ID to update
@@ -183,6 +219,7 @@ export async function deletePlant(id: string): Promise<void> {
 
 // Export a default object for convenience
 export const plantsRepository = {
+  restore,
   getAll,
   getById,
   create,

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search, Filter, Plus, Share2 } from 'lucide-react'
 import PlantCard from '@/components/PlantCard'
@@ -33,23 +33,28 @@ export default function Home() {
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const filterRef = useRef<HTMLDivElement>(null)
 
+  /**
+   * Чтение коллекции вынесено из эффекта: его же вызывает восстановление из
+   * резервной копии, когда в базе появились новые растения. `useCallback` —
+   * чтобы ссылка не менялась и не дёргала эффект на каждую перерисовку.
+   */
+  const loadPlants = useCallback(async () => {
+    try {
+      // Initialize database and run migration if needed
+      await initializeDatabase()
+
+      // Load plants from repository
+      const loadedPlants = await plantsRepository.getAll()
+      setPlants(loadedPlants)
+    } catch (error) {
+      console.error('Error loading plants:', error)
+      setPlants([])
+    }
+  }, [])
+
   // Initialize database and load plants on mount and when page becomes visible
   useEffect(() => {
-    const loadPlantsData = async () => {
-      try {
-        // Initialize database and run migration if needed
-        await initializeDatabase()
-
-        // Load plants from repository
-        const loadedPlants = await plantsRepository.getAll()
-        setPlants(loadedPlants)
-      } catch (error) {
-        console.error('Error loading plants:', error)
-        setPlants([])
-      }
-    }
-
-    loadPlantsData()
+    loadPlants()
 
     // Reload plants when the tab comes back to the foreground.
     // Возврат с add/edit сюда не относится: это клиентская навигация, компонент
@@ -58,7 +63,7 @@ export default function Home() {
     // и давал второе чтение из IndexedDB.
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        loadPlantsData()
+        loadPlants()
       }
     }
 
@@ -67,7 +72,7 @@ export default function Home() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [])
+  }, [loadPlants])
 
   /**
    * Удалить растение. Возвращает, получилось ли: карточке нужно знать, чтобы
@@ -298,7 +303,7 @@ export default function Home() {
             рассказывать про сохранность нечего: терять пока нечего, а первый
             призыв должен быть один.
           */}
-          <StorageStatus />
+          <StorageStatus onRestored={loadPlants} />
         </>
       )}
 

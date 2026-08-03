@@ -109,6 +109,29 @@ export async function addPhoto(plantId: string, blob: Blob): Promise<string> {
 }
 
 /**
+ * Записать фотографию под заданным ключом.
+ *
+ * Нужно восстановлению из резервной копии: `addPhoto` придумывает ключ сам, а
+ * здесь ключи должны совпасть с теми, что записаны у растений в копии. `put`, а
+ * не `add`: один и тот же блоб под тем же ключом — это то же самое фото, и
+ * перезапись безобидна.
+ */
+export async function restorePhoto(key: string, blob: Blob): Promise<void> {
+  const db = await initDB()
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([STORES.PHOTOS], 'readwrite')
+    const request = transaction.objectStore(STORES.PHOTOS).put(blob, key)
+
+    request.onsuccess = () => resolve()
+    request.onerror = () => {
+      console.error('Error restoring photo:', request.error)
+      reject(request.error)
+    }
+  })
+}
+
+/**
  * Удалить фотографию по ключу
  */
 export async function deletePhoto(photoId: string): Promise<void> {
@@ -157,6 +180,7 @@ export async function getBlobById(photoKey: string): Promise<Blob> {
 }
 
 export const photosRepository = {
+  restorePhoto,
   getByPlantId,
   revokeUrls,
   addPhoto,

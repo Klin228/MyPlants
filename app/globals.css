@@ -1061,6 +1061,31 @@ body {
   margin-top: 0.15em;
 }
 
+/* Кнопки резервной копии: тем же тихим видом, что действия в карточке */
+.storage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+  margin-left: calc(-1 * var(--space-md));
+}
+
+.storage-actions .btn {
+  gap: var(--space-sm);
+}
+
+/* Поле выбора файла нажимается через кнопку рядом, само оно не показывается */
+.storage-file {
+  display: none;
+}
+
+.storage-result {
+  margin: var(--space-sm) 0 0 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
 .storage-hint {
   display: flex;
   align-items: flex-start;
