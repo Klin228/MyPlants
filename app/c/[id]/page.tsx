@@ -15,7 +15,7 @@ import type { Metadata } from 'next'
 import { unstable_noStore as noStore } from 'next/cache'
 import { sql } from '@/lib/server/db'
 import { formatCalendarDate } from '@/lib/dates'
-import { speciesKey } from '@/lib/species'
+import { countSpecies, describeCollection } from '@/lib/collectionSummary'
 import type { SnapshotPhoto } from '@/lib/sharing/types'
 
 /**
@@ -127,8 +127,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const { collection, plants } = data
   const title = collection.title || 'Plant collection'
-  const species = new Set(plants.map((plant) => speciesKey(plant.species ?? '')).filter(Boolean))
-  const description = describe(plants.length, species.size)
+  const description = describeCollection(plants.length, countSpecies(plants))
 
   return {
     title,
@@ -162,13 +161,12 @@ export default async function CollectionPage({ params }: PageProps) {
 
   const { collection, plants } = data
   const base = blobBaseUrl()
-  const species = new Set(plants.map((plant) => speciesKey(plant.species ?? '')).filter(Boolean))
 
   return (
     <div className="showcase">
       <header className="showcase-header">
         <h1 className="showcase-title">{collection.title || 'Plant collection'}</h1>
-        <p className="showcase-summary">{describe(plants.length, species.size)}</p>
+        <p className="showcase-summary">{describeCollection(plants.length, countSpecies(plants))}</p>
 
         {collection.total_price !== null && (
           <p className="showcase-total">${Number(collection.total_price).toFixed(2)}</p>
@@ -358,9 +356,3 @@ function Provenance({ acquiredOn, source }: { acquiredOn: string | null; source:
   return <p className="showcase-meta">{parts.join(' · ')}</p>
 }
 
-function describe(plantCount: number, speciesCount: number): string {
-  const plants = `${plantCount} ${plantCount === 1 ? 'plant' : 'plants'}`
-  if (speciesCount === 0) return plants
-
-  return `${plants} · ${speciesCount} ${speciesCount === 1 ? 'species' : 'species'}`
-}

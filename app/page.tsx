@@ -8,12 +8,21 @@ import ShareDialog from '@/components/ShareDialog'
 import { plantsRepository } from '@/lib/repositories/plantsRepository'
 import { initializeDatabase } from '@/lib/repositories/migration'
 import { speciesKey } from '@/lib/species'
+import { countSpecies, describeCollection } from '@/lib/collectionSummary'
 import type { Plant } from '@/lib/models/plant'
 
 export default function Home() {
   const router = useRouter()
-  // Plants state - initialize as empty, will load from localStorage
-  const [plants, setPlants] = useState<Plant[]>([])
+  /**
+   * Три состояния, а не два. `null` — «ещё не читали».
+   *
+   * Раньше список начинался с пустого массива, и на первом кадре при живой
+   * коллекции мигало «Your collection is empty». С переездом суммы в шапку
+   * мигало бы уже четыре вещи: сумма, сводка, поиск и кнопка «Поделиться».
+   * Скелетоны (тикет D6) займут место внутри уже размеренного бокса, а сама
+   * ветка «ещё не читали» нужна здесь и сейчас.
+   */
+  const [plants, setPlants] = useState<Plant[] | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'name' | 'price' | 'date'>('name')
   const [isFilterOpen, setIsFilterOpen] = useState(false)
@@ -61,10 +70,9 @@ export default function Home() {
     try {
       // Delete plant (repository handles photo deletion automatically)
       await plantsRepository.delete(plantIdToDelete)
-      
+
       // Update local state
-      const remainingPlants = plants.filter(plant => plant.id !== plantIdToDelete)
-      setPlants(remainingPlants)
+      setPlants((current) => (current ?? []).filter(plant => plant.id !== plantIdToDelete))
     } catch (error) {
       console.error('Error deleting plant:', error)
       alert('Error deleting plant. Please try again.')
@@ -84,10 +92,11 @@ export default function Home() {
   // Filter plants by name or species.
   // Вид сравнивается через speciesKey, иначе «Thai Constellation» с
   // типографским апострофом не найдётся по запросу с обычным.
+  const loaded = plants ?? []
   const query = speciesKey(searchQuery)
   const filteredPlants = query === ''
-    ? plants
-    : plants.filter(plant =>
+    ? loaded
+    : loaded.filter(plant =>
         speciesKey(plant.name).includes(query) || speciesKey(plant.species).includes(query)
       )
 
@@ -107,40 +116,82 @@ export default function Home() {
     }
   })
 
-  // Calculate total price (always use all plants, not filtered)
-  const totalPrice = plants.reduce((sum, plant) => sum + plant.price, 0)
+  /**
+   * Стоимость и сводка описывают ВСЮ коллекцию и на поиск не реагируют.
+   *
+   * Так было и раньше для суммы, и сводка обязана быть с ней согласована:
+   * «2 plants · 1 species» над суммой за все сорок одно — ложное показание в
+   * главном числе продукта, читатель отнесёт деньги к двум растениям. Отклик
+   * на поиск даёт отдельная строка под тулбаром.
+   */
+  const totalPrice = loaded.reduce((sum, plant) => sum + plant.price, 0)
+  const summary = describeCollection(loaded.length, countSpecies(loaded))
 
   // Close filter dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    // Слушаем и мышь, и касание: на телефоне тапом «мимо» дропдаун не
+    // закрывался, потому что touchstart не сопровождается mousedown до
+    // окончания жеста.
+    const handleClickOutside = (event: Event) => {
       if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
         setIsFilterOpen(false)
       }
     }
     if (isFilterOpen) {
       document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('touchstart', handleClickOutside)
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchstart', handleClickOutside)
     }
   }, [isFilterOpen])
 
+  const hasPlants = loaded.length > 0
+
   return (
     <main className="page">
-      <div className="page-header">
-        <h1 className="page-title">MyPlants</h1>
-        {plants.length > 0 && (
-          <button
-            onClick={() => setIsShareOpen(true)}
-            className="btn btn--icon-square"
-            aria-label="Share collection"
-          >
-            <Share2 size={20} color="currentColor" />
-          </button>
+      {/*
+        Шапка повторяет витрину: заголовок, сводка, стоимость. Прокручивается
+        вместе с содержимым, а не прилипает: на телефоне липкая шапка навсегда
+        съела бы около 150 пикселей у того, ради чего экран существует, — у
+        фотографий, — а сумма нужна на взгляд, не постоянно. Возврат после
+        добавления растения прокручивает страницу в начало, то есть в момент,
+        когда сумма и интересна, шапка на экране гарантированно.
+      */}
+      <div className="page-head">
+        <div className="page-header">
+          <h1 className="page-title">MyPlants</h1>
+          {hasPlants && (
+            <button
+              onClick={() => setIsShareOpen(true)}
+              className="btn btn--icon-square"
+              aria-label="Share collection"
+            >
+              <Share2 size={20} color="currentColor" />
+            </button>
+          )}
+        </div>
+
+        {/*
+          При пустой коллекции — только заголовок. Прежний «Total: $0.00»
+          читался не как «пусто», а как «приложение потеряло данные». Условие по
+          числу растений, а не по сумме: коллекция с незаполненными ценами даёт
+          законный ноль, и его показывать надо.
+        */}
+        {hasPlants && (
+          <>
+            <p className="page-summary">{summary}</p>
+            <p className="page-total">${totalPrice.toFixed(2)}</p>
+          </>
         )}
       </div>
 
-      {plants.length === 0 ? (
+      {plants === null ? (
+        // Ещё не читали из базы. Пустое состояние здесь показывать нельзя: при
+        // живой коллекции оно мигнёт и исчезнет.
+        null
+      ) : !hasPlants ? (
         <div className="empty-state">
           <p className="empty-state-title">Your collection is empty</p>
           <p className="empty-state-hint">Tap the button below to add your first plant!</p>
@@ -191,17 +242,27 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Plant List or No Results */}
+          {/*
+            Шапка не реагирует на поиск, а сетка реагирует, и в три колонки
+            факт фильтрации с первого взгляда не читается. Поэтому он сказан
+            словами — и только при непустом запросе.
+          */}
+          {query !== '' && sortedPlants.length > 0 && (
+            <p className="result-count">
+              {sortedPlants.length} of {loaded.length} {loaded.length === 1 ? 'plant' : 'plants'}
+            </p>
+          )}
+
           {sortedPlants.length === 0 ? (
             <div className="no-results">
-              <p>No plants found matching "{searchQuery}"</p>
+              <p>No plants found matching &quot;{searchQuery}&quot;</p>
             </div>
           ) : (
-            <div className="plant-list">
+            <div className="plant-grid">
               {sortedPlants.map((plant) => (
-                <PlantCard 
-                  key={plant.id} 
-                  plant={plant} 
+                <PlantCard
+                  key={plant.id}
+                  plant={plant}
                   onDelete={handleDeletePlant}
                   onEdit={handleEditPlant}
                 />
@@ -211,21 +272,18 @@ export default function Home() {
         </>
       )}
 
-      {/* Bottom Action Row */}
-      <div className="bottom-bar">
-        {/* Total Value Block */}
-        <div className="total-badge">
-          <span>Total: ${totalPrice.toFixed(2)}</span>
-        </div>
-
-        {/* Add Plant Button */}
+      {/*
+        Слой сквозной для касаний, кнопка — нет. Прежняя прозрачная панель во
+        всю ширину окна перехватывала тапы по карточкам, проезжающим под ней.
+      */}
+      <div className="fab-layer">
         <button onClick={handleOpenAddForm} className="btn btn--add" aria-label="Add plant">
-          <Plus size={24} />
+          <Plus size={22} />
           Add plant
         </button>
       </div>
 
-      {isShareOpen && <ShareDialog plants={plants} onClose={() => setIsShareOpen(false)} />}
+      {isShareOpen && <ShareDialog plants={loaded} onClose={() => setIsShareOpen(false)} />}
     </main>
   )
 }

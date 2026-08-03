@@ -82,6 +82,30 @@
 
   /* Минимальная площадь касания */
   --tap-target: 48px;
+
+  /*
+   * Минимальная ширина карточки в сетке. Общий с витриной: числу нельзя
+   * разойтись в двух местах, иначе одна сетка однажды поедет относительно
+   * другой. 320, а не 280 — при 280 на широком экране укладывается четвёртая
+   * колонка и карточки мельчают.
+   */
+  --card-min: 320px;
+
+  /*
+   * Пропорция фотографии. Общая с витриной: карточка на главной должна быть
+   * предпросмотром того, что увидит гость по ссылке, иначе владелец кадрирует
+   * под один кроп, а публикует в другой.
+   */
+  --photo-ratio: 4 / 3;
+
+  /*
+   * Плавающая кнопка добавления: отступ от низа и место, которое она занимает.
+   * Раньше это были два числа, согласованные вручную с высотой панели, —
+   * padding-bottom: 5.5rem у .page и bottom: 6rem у .toast, — и ни одно из них
+   * эту высоту не измеряло.
+   */
+  --fab-bottom: max(var(--space-xl), env(safe-area-inset-bottom));
+  --fab-reserve: calc(var(--fab-bottom) + var(--tap-target));
 }
 
 body {
@@ -100,7 +124,7 @@ body {
 /* Главная: лента карточек */
 .page {
   padding: var(--space-lg);
-  padding-bottom: 5.5rem;
+  padding-bottom: calc(var(--fab-reserve) + var(--space-xl));
   max-width: 1200px;
   margin: 0 auto;
   min-height: 100vh;
@@ -190,7 +214,8 @@ body {
   border-radius: var(--radius-lg);
   background-color: var(--color-primary);
   color: var(--color-surface);
-  font-size: 1.3rem;
+  /* Было 1.3rem вне шкалы: размер считался под кнопку в половину экрана */
+  font-size: var(--text-lg);
   white-space: nowrap;
   box-shadow: var(--shadow-md);
 }
@@ -231,6 +256,15 @@ body {
 
 .btn--link:hover {
   background-color: var(--color-accent-hover);
+}
+
+/*
+ * Видимый фокус — общим правилом, а не по кнопке. До сих пор его не было ни у
+ * одной кнопки главного экрана, и с клавиатуры экран проходился слепо.
+ */
+.btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 /* Круглая кнопка с иконкой в шапке экрана */
@@ -313,8 +347,20 @@ body {
   background-color: var(--color-surface);
 }
 
+/*
+ * Карточки в ряду сетки тянутся до одной высоты, поэтому тело растягивается, а
+ * последний элемент прижимается к низу. Иначе кнопки у соседей стоят на разной
+ * высоте и каталог выглядит случайным.
+ */
 .card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   padding: var(--space-lg);
+}
+
+.card-body > .btn--accent {
+  margin-top: auto;
 }
 
 .card-title {
@@ -514,47 +560,63 @@ body {
   border-radius: var(--radius-sm);
   background-color: var(--color-surface);
   font-family: var(--font-body);
-  font-size: 15px;
+  /* Было 15px: Safari на iOS зумит страницу при фокусе на поле меньше 16px */
+  font-size: var(--text-input);
   cursor: pointer;
 }
 
 /* ---------- Нижняя панель ---------- */
 
-.bottom-bar {
+/*
+ * Плавающая кнопка добавления вместо прежней нижней панели.
+ *
+ * Панель была прозрачным блоком во всю ширину окна с двумя элементами —
+ * стоимостью и кнопкой. Стоимость уехала в шапку, и от панели осталась одна
+ * кнопка у правого края, то есть та же плавающая кнопка плюс лишний
+ * невидимый бокс.
+ *
+ * Бокс был не безобиден: замерено 1265×80 при вьюпорте 1280 и `z-index: 999`,
+ * и `elementFromPoint` в прозрачных местах возвращал саму панель. Карточка,
+ * проезжающая под этой полосой, не открывалась по тапу. Отсюда
+ * `pointer-events: none` на слое и `auto` на самой кнопке.
+ *
+ * Слой повторяет бокс `.page`, поэтому правый край кнопки совпадает с краем
+ * контента на любой ширине, а не улетает к краю окна на широком экране.
+ */
+.fab-layer {
   position: fixed;
-  bottom: var(--space-xl);
   left: 0;
   right: 0;
+  bottom: var(--fab-bottom);
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--space-lg);
   display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-md) var(--space-lg);
-  background-color: transparent;
+  justify-content: flex-end;
+  pointer-events: none;
   z-index: 999;
 }
 
-.total-badge {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: var(--tap-target);
-  padding: 0.2rem var(--space-lg);
-  border: 1px solid var(--color-accent);
-  border-radius: var(--radius-lg);
-  background-color: var(--color-surface);
-  box-shadow: var(--shadow-sm);
-}
-
-.total-badge span {
-  font-size: var(--text-base);
-  font-weight: bold;
-  color: var(--color-text);
+.fab-layer .btn--add {
+  pointer-events: auto;
 }
 
 /* ---------- Пустые состояния ---------- */
 
+/*
+ * Центрируется по вертикали, а не прижимается к шапке: на пустом экране между
+ * текстом у верха и кнопкой у низа оставался провал в пол-экрана, и призыв
+ * добавить первое растение висел в пустоте.
+ *
+ * `min-height` в долях экрана, а не вычитание высоты шапки и кнопки: шапка при
+ * пустой коллекции состоит из одного заголовка, её высота известна и без
+ * расчёта, а от точности здесь ничего не зависит.
+ */
 .empty-state {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 55vh;
   text-align: center;
   padding: var(--space-3xl) var(--space-lg);
   color: var(--color-text-muted);
@@ -572,9 +634,17 @@ body {
   color: var(--color-text-subtle);
 }
 
-.plant-list {
-  display: flex;
-  flex-direction: column;
+/*
+ * Одна колонка на телефоне, две на планшете, три на широком экране — без
+ * медиазапросов: минимальная ширина колонки задаёт переносы сама.
+ *
+ * `min(100%, …)` обязателен, и это не украшение: без него колонка не может
+ * сжаться ниже минимума, и на экране уже 320 карточка вылезает за свой бокс.
+ * Замерено до правки: переполнение 72 пикселя при боксе сетки 248.
+ */
+.plant-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--card-min)), 1fr));
   gap: var(--space-lg);
   margin-bottom: var(--space-xl);
 }
@@ -601,21 +671,34 @@ body {
  * Скруглены только верхние углы: снизу галерея упирается в тело карточки.
  * Форма записи `12px 0 0` из исходного кода сохранена как есть.
  */
+/*
+ * Высота задаётся пропорцией, а не потолком в пикселях.
+ *
+ * Раньше стояло `max-height: 360px`, и фактическая высота зависела от
+ * пропорций конкретного снимка: портретный кадр упирался в потолок, а
+ * альбомный в карточке 343px давал 257. В ленте это было незаметно, в сетке
+ * даёт рваные ряды. Хуже другое: заглушка загрузки была жёстко 360px, то есть
+ * вёрстка прыгала на сотню пикселей при каждой загрузке фотографии.
+ *
+ * Своего радиуса нет намеренно: `.card` клипует детей своим `overflow: hidden`,
+ * а 12 пикселей галереи внутри 16 пикселей карточки давали заметную зазубрину.
+ * Прежний трёхзначный шорткат вообще скруглял только левый верхний угол,
+ * хотя комментарий рядом утверждал, что оба верхних.
+ */
 .gallery {
   width: 100%;
-  max-height: 360px;
+  aspect-ratio: var(--photo-ratio);
   overflow: hidden;
-  border-radius: var(--radius-md) 0 0;
   position: relative;
 }
 
+/* Та же пропорция, что у загруженной фотографии: место не должно меняться */
 .gallery-empty {
   width: 100%;
-  height: 360px;
+  aspect-ratio: var(--photo-ratio);
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-md) 0 0;
   background-color: var(--color-surface-empty);
   color: var(--color-text-muted);
 }
@@ -660,7 +743,6 @@ body {
 .gallery-slide img {
   width: 100%;
   height: 100%;
-  max-height: 360px;
   object-fit: cover;
   object-position: center;
   display: block;
@@ -774,7 +856,7 @@ body {
 
 .toast {
   position: fixed;
-  bottom: 6rem;
+  bottom: calc(var(--fab-reserve) + var(--space-md));
   left: 50%;
   transform: translateX(-50%);
   max-width: 90%;
@@ -866,6 +948,54 @@ body {
 /* Заголовок внутри шапки свой отступ уже не задаёт */
 .page-header .page-title {
   margin-bottom: 0;
+}
+
+/*
+ * Шапка главного экрана повторяет витрину: заголовок, сводка, стоимость.
+ * Владелец видит свою коллекцию в той же последовательности, в которой её
+ * увидит гость по ссылке.
+ *
+ * Обёртка нужна из-за пустого состояния: там внутри остаётся только
+ * заголовок, и отступ снизу другой. Без обёртки это лечится либо `:has()`,
+ * либо дублированием отступа в двух местах.
+ *
+ * Классы свои, не `.showcase-*`: разделение классов витрины и внутренних
+ * экранов записано выше намеренно, общими остаются только токены. Витрина
+ * к тому же центрирована, а здесь заголовок стоит в ряду с кнопкой.
+ */
+.page-head {
+  margin-bottom: var(--space-xl);
+}
+
+.page-head .page-header {
+  margin-bottom: var(--space-sm);
+}
+
+.page-summary {
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--color-text-muted);
+}
+
+/* Стоимость коллекции — то, ради чего продукт отличается от приложений
+   про уход. Оформлена как на витрине, теми же токенами. */
+.page-total {
+  margin: var(--space-xs) 0 0 0;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: bold;
+  color: var(--color-accent);
+}
+
+/*
+ * Отклик на поиск. Шапка описывает всю коллекцию и на запрос не реагирует —
+ * иначе сводка противоречила бы сумме под ней. А в сетке из двух-трёх колонок
+ * факт фильтрации с первого взгляда не читается, поэтому он сказан словами.
+ */
+.result-count {
+  margin: 0 0 var(--space-lg) 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-subtle);
 }
 
 /* ---------- Диалог поверх экрана ---------- */
@@ -1019,7 +1149,7 @@ body {
  */
 .showcase-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--card-min)), 1fr));
   gap: var(--space-lg);
 }
 

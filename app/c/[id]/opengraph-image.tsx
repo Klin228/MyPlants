@@ -17,7 +17,7 @@ import { join } from 'node:path'
 import { unstable_noStore as noStore } from 'next/cache'
 import { ImageResponse } from 'next/og'
 import { sql } from '@/lib/server/db'
-import { speciesKey } from '@/lib/species'
+import { countSpecies, describeCollection } from '@/lib/collectionSummary'
 import type { SnapshotPhoto } from '@/lib/sharing/types'
 
 export const runtime = 'nodejs'
@@ -138,11 +138,9 @@ async function query(id: string): Promise<PosterData | null> {
         .map((photo) => `${base}/${photo.path}`)
     : []
 
-  const species = new Set(plants.map((plant) => speciesKey(plant.species ?? '')).filter(Boolean))
-
   return {
     title: truncate(collection.title || 'Plant collection', 60),
-    summary: describe(plants.length, species.size),
+    summary: describeCollection(plants.length, countSpecies(plants)),
     totalPrice: collection.total_price === null ? null : Number(collection.total_price).toFixed(2),
     covers,
   }
@@ -307,12 +305,6 @@ function Placeholder() {
   )
 }
 
-function describe(plantCount: number, speciesCount: number): string {
-  const plants = `${plantCount} ${plantCount === 1 ? 'plant' : 'plants'}`
-  if (speciesCount === 0) return plants
-
-  return `${plants} · ${speciesCount} species`
-}
 
 /** Длинное название ломает раскладку — обрезаем по словам, а не по буквам. */
 function truncate(value: string, limit: number): string {
