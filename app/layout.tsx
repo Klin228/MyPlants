@@ -41,8 +41,10 @@ function siteUrl(): URL {
 
 export const metadata: Metadata = {
   metadataBase: siteUrl(),
-  title: 'Plant Collection',
-  description: 'Manage your personal plant collection',
+  // Название совпадает с шапкой приложения и манифестом: вкладка не должна
+  // называть продукт иначе, чем он называет себя сам.
+  title: 'MyPlants',
+  description: 'Personal plant collection manager',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,

@@ -300,7 +300,7 @@ export default function FullscreenPhotoViewer({
         onClick={() => close()}
         className="btn btn--glass viewer-close"
         style={{ opacity: isInteracting ? 0 : 1 }}
-        aria-label="Закрыть"
+        aria-label="Close"
       >
         ×
       </button>
@@ -319,7 +319,7 @@ export default function FullscreenPhotoViewer({
               <img
                 ref={index === activeIndex ? imageRef : undefined}
                 src={url}
-                alt={`${alt} — фото ${index + 1}`}
+                alt={`${alt} — photo ${index + 1}`}
                 onDoubleClick={handleDoubleClick}
                 draggable={false}
                 decoding="async"
@@ -332,7 +332,7 @@ export default function FullscreenPhotoViewer({
                 }}
               />
             ) : (
-              <span className="viewer-missing">Фото недоступно</span>
+              <span className="viewer-missing">Photo unavailable</span>
             )}
           </div>
         ))}

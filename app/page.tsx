@@ -221,7 +221,7 @@ export default function Home() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by name or species..."
+                placeholder="Search by name or species…"
                 className="search-input"
               />
             </div>
@@ -247,9 +247,9 @@ export default function Home() {
                     }}
                     className="select"
                   >
-                    <option value="name">Sort by: Name (A-Z)</option>
-                    <option value="price">Sort by: Price (High to Low)</option>
-                    <option value="date">Sort by: Date Added (Newest First)</option>
+                    <option value="name">Sort by: name (A-Z)</option>
+                    <option value="price">Sort by: price (high to low)</option>
+                    <option value="date">Sort by: date added (newest first)</option>
                   </select>
                 </div>
               )}

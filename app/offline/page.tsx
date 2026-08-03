@@ -41,7 +41,7 @@ export default function OfflinePage() {
       <div className="offline">
         <div className="offline-card">
           <h1 className="offline-title">You're back online!</h1>
-          <p className="offline-text">Redirecting you to the app...</p>
+          <p className="offline-text">Redirecting you to the app…</p>
         </div>
       </div>
     )

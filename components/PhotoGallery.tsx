@@ -270,7 +270,7 @@ export default function PhotoGallery({ photos, alt }: PhotoGalleryProps) {
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={photoUrl}
-                alt={`${alt} - Photo ${index + 1}`}
+                alt={`${alt} — photo ${index + 1}`}
                 onClick={onClick}
                 draggable={false}
                 decoding="async"

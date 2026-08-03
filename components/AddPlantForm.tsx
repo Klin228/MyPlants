@@ -347,7 +347,7 @@ export default function AddPlantForm({
       <div className="form-fields">
         <div className="field">
           <label className="field-label">
-            Plant Name: <span className="field-required">*</span>
+            Plant name: <span className="field-required">*</span>
           </label>
           <input
             type="text"
@@ -396,7 +396,7 @@ export default function AddPlantForm({
 
         <div className="field">
           <label className="field-label">
-            Plant Photos: <span className="field-required">*</span>
+            Plant photos: <span className="field-required">*</span>
           </label>
 
           {/* Photo Grid */}
@@ -507,7 +507,7 @@ export default function AddPlantForm({
             onChange={(e) => setNotes(e.target.value)}
             rows={4}
             className="field-input field-input--area"
-            placeholder="Add any notes about this plant..."
+            placeholder="Add any notes about this plant…"
           />
         </div>
       </div>
@@ -518,7 +518,7 @@ export default function AddPlantForm({
           Cancel
         </button>
         <button type="submit" className="btn btn--primary" disabled={isSubmitting || processing > 0}>
-          {initialPlant ? 'Save Changes' : 'Add Plant'}
+          {initialPlant ? 'Save changes' : 'Add plant'}
         </button>
       </div>
     </form>
