@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, FormEvent, useEffect, useMemo } from 'react'
+import { useState, FormEvent, useEffect, useMemo, useRef } from 'react'
 import { X } from 'lucide-react'
 import type { NewPlant, Plant } from '@/lib/models/plant'
 import { photosRepository } from '@/lib/repositories/photosRepository'
+import { LOCAL_PHOTO_MAX_SIZE, resizeToJpeg } from '@/lib/images'
 import { SPECIES_CATALOG } from '@/lib/data/speciesCatalog'
 import { buildSpeciesSuggestions, looksLikeBinomial, normalizeSpeciesInput } from '@/lib/species'
 import { todayAsDateInput } from '@/lib/dates'
@@ -19,10 +20,21 @@ interface AddPlantFormProps {
   knownSpecies?: string[]
 }
 
+/**
+ * Фотография в форме: либо уже сохранённая в базе, либо только что выбранная.
+ *
+ * `url` — **object URL**, а не строка base64. Раньше превью новых фотографий
+ * строились через `FileReader.readAsDataURL`, то есть снимок на 8 МБ жил в
+ * состоянии компонента строкой почти на 11 МБ. Это ровно то, из-за чего на iOS
+ * выгружало вкладку, и правило против этого записано в `CLAUDE.md`.
+ */
 interface PhotoPreview {
-  preview: string // Data URL for preview
-  file?: File // Original file (for new uploads)
-  key?: string // IndexedDB key (for existing photos)
+  /** Object URL для показа. Пустая строка, если блоба под ключом не нашлось. */
+  url: string
+  /** Уже уменьшенный блоб — только у новых фотографий, ждёт записи в базу. */
+  blob?: Blob
+  /** Ключ в IndexedDB — только у фотографий, которые там уже лежат. */
+  key?: string
 }
 
 export default function AddPlantForm({
@@ -39,6 +51,38 @@ export default function AddPlantForm({
   const [source, setSource] = useState('')
   const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  /** Сколько фотографий сейчас уменьшается. Снимок на 8 МБ это не мгновенно. */
+  const [processing, setProcessing] = useState(0)
+
+  /**
+   * Все object URL, которые создал этот компонент, — и те, что пришли из
+   * репозитория для уже сохранённых фотографий: по контракту `getByPlantId`
+   * освобождает их тот, кто получил.
+   *
+   * Держим в ref, а не в состоянии: набор нужен в `cleanup` при размонтировании,
+   * а туда попадает только то, что не зависит от последнего рендера.
+   */
+  const createdUrls = useRef<Set<string>>(new Set())
+
+  const rememberUrl = (url: string) => {
+    if (url) createdUrls.current.add(url)
+    return url
+  }
+
+  const forgetUrl = (url: string) => {
+    if (!url) return
+    createdUrls.current.delete(url)
+    photosRepository.revokeUrls([url])
+  }
+
+  // Освобождаем всё при размонтировании — иначе блобы висят до перезагрузки
+  useEffect(() => {
+    const urls = createdUrls.current
+    return () => {
+      photosRepository.revokeUrls([...urls])
+      urls.clear()
+    }
+  }, [])
 
   // Растение не могло появиться в коллекции в будущем — обычная защита от опечатки
   const today = useMemo(() => todayAsDateInput(), [])
@@ -69,9 +113,9 @@ export default function AddPlantForm({
       // Load photo previews from repository
       if (initialPlant.photos && initialPlant.photos.length > 0) {
         photosRepository.getByPlantId(initialPlant.photos)
-          .then(previews => {
-            setPhotoPreviews(previews.map((preview, index) => ({
-              preview,
+          .then(urls => {
+            setPhotoPreviews(urls.map((url, index) => ({
+              url: rememberUrl(url),
               key: initialPlant.photos[index]
             })))
           })
@@ -147,82 +191,77 @@ export default function AddPlantForm({
       return
     }
 
-    console.log(`Processing ${imageFiles.length} image file(s)`)
+    /*
+     * Каждая фотография уменьшается ДО записи в базу, а не после.
+     *
+     * Здесь была главная нестыковка проекта: `CLAUDE.md` утверждал, что все
+     * новые фотографии проходят через сжатие, а на деле в IndexedDB уезжал
+     * исходный `File` — 3–8 МБ со снимка телефона на каждое фото. Уменьшаем
+     * готовой `resizeToJpeg`, которой уже пользуется публикация: вторая
+     * библиотека сжатия проекту не нужна.
+     *
+     * Превью берётся из уже уменьшенного блоба, а не из исходника: показывать
+     * восьмимегабайтный кадр в плитке 100 пикселей незачем.
+     */
+    setProcessing((count) => count + imageFiles.length)
 
-    // Process files: create previews and store File objects
-    const filePromises = imageFiles.map((file) => {
-      return new Promise<PhotoPreview>((resolve, reject) => {
-        const reader = new FileReader()
-        
-        reader.onloadend = () => {
-          try {
-            if (!reader.result || typeof reader.result !== 'string') {
-              reject(new Error(`FileReader returned invalid result`))
-              return
-            }
-
-            const preview = reader.result as string
-            resolve({ preview, file })
-          } catch (error) {
-            reject(new Error(`Error processing file: ${error instanceof Error ? error.message : String(error)}`))
-          }
-        }
-        
-        reader.onerror = () => {
-          reject(new Error(`Error reading file`))
-        }
-
-        reader.readAsDataURL(file)
-      })
-    })
-
-    // Use Promise.allSettled to handle individual photo failures gracefully
-    Promise.allSettled(filePromises)
+    Promise.allSettled(imageFiles.map((file) => resizeToJpeg(file, LOCAL_PHOTO_MAX_SIZE)))
       .then((results) => {
-        const successful: PhotoPreview[] = []
-        const failed: { index: number; error: string }[] = []
+        const added: PhotoPreview[] = []
+        let failed = 0
 
         results.forEach((result, index) => {
           if (result.status === 'fulfilled') {
-            successful.push(result.value)
+            const url = URL.createObjectURL(result.value.blob)
+            added.push({ url: rememberUrl(url), blob: result.value.blob })
           } else {
-            failed.push({ index, error: result.reason?.message || String(result.reason) })
+            failed += 1
             console.error(`Photo ${index + 1} failed:`, result.reason)
           }
         })
 
-        if (successful.length > 0) {
-          setPhotoPreviews(prev => {
-            const updated = [...prev, ...successful]
-            console.log(`Total photos after adding: ${updated.length}`)
-            return updated
-          })
-          
-          if (failed.length > 0) {
-            alert(`Warning: ${failed.length} photo(s) could not be processed, but ${successful.length} photo(s) were added successfully.`)
-          }
-        } else {
-          alert(`No photos could be processed. ${failed.length > 0 ? failed.length + ' photo(s) failed.' : ''} Please try again.`)
+        if (added.length > 0) setPhotoPreviews((prev) => [...prev, ...added])
+
+        if (failed > 0) {
+          alert(
+            added.length > 0
+              ? `Warning: ${failed} photo(s) could not be processed, but ${added.length} were added.`
+              : `No photos could be processed. ${failed} photo(s) failed. Please try again.`
+          )
         }
       })
-      .catch((error) => {
-        console.error('Unexpected error processing images:', error)
-        alert(`Error uploading images: ${error.message || 'Please try again.'}`)
-      })
       .finally(() => {
+        setProcessing((count) => Math.max(0, count - imageFiles.length))
         e.target.value = ''
       })
   }
 
   // Remove a photo by index
   const handleRemovePhoto = (index: number) => {
-    setPhotoPreviews(prev => prev.filter((_, i) => i !== index))
+    setPhotoPreviews((prev) => {
+      // Указатель убранной фотографии освобождаем сразу, а не ждём
+      // размонтирования: иначе выбор и отмена десятка снимков подряд оставят
+      // в памяти все десять блобов.
+      const removed = prev[index]
+      if (removed) forgetUrl(removed.url)
+      return prev.filter((_, i) => i !== index)
+    })
   }
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     
     if (isSubmitting) return
+
+    /*
+     * Пока фотографии уменьшаются, их ещё нет в `photoPreviews`. Без этой
+     * проверки отправка сохранила бы растение без них — молча, потому что
+     * форма считает, что фотографии просто не добавляли.
+     */
+    if (processing > 0) {
+      alert('Photos are still being prepared. One moment.')
+      return
+    }
     
     // Validate form
     if (!name.trim()) {
@@ -244,22 +283,20 @@ export default function AddPlantForm({
     setIsSubmitting(true)
 
     try {
-      // Separate new files from existing photos (by key)
-      const newFiles = photoPreviews.filter(p => p.file).map(p => p.file!)
+      // Separate new photos from existing ones (by key)
+      const newBlobs = photoPreviews.filter(p => p.blob).map(p => p.blob!)
       const existingKeys = photoPreviews.filter(p => p.key).map(p => p.key!)
 
-      // Save new files to repository
+      // Save new photos to repository. Блобы уже уменьшены при выборе файла.
       let photoKeys: string[] = [...existingKeys]
-      if (newFiles.length > 0) {
-        console.log(`Saving ${newFiles.length} new photo(s)...`)
+      if (newBlobs.length > 0) {
         // For new photos, we need a plantId - use a temporary one for now
         // The actual plantId will be set when the plant is created
         const tempPlantId = 'temp'
         const newKeys = await Promise.all(
-          newFiles.map(file => photosRepository.addPhoto(tempPlantId, file))
+          newBlobs.map(blob => photosRepository.addPhoto(tempPlantId, blob))
         )
         photoKeys = [...existingKeys, ...newKeys]
-        console.log(`Saved ${newKeys.length} photo(s)`)
       }
 
       // Call the parent handler with photo keys
@@ -277,7 +314,11 @@ export default function AddPlantForm({
       if (!initialPlant) {
         setName('')
         setSpecies('')
-        setPhotoPreviews([])
+        // Указатели превью больше не нужны: блобы уже в базе
+        setPhotoPreviews((prev) => {
+          prev.forEach((photo) => forgetUrl(photo.url))
+          return []
+        })
         setPrice('')
         setAcquiredOn('')
         setSource('')
@@ -354,7 +395,18 @@ export default function AddPlantForm({
             <div className="photo-grid">
               {photoPreviews.map((photoPreview, index) => (
                 <div key={index} className="photo-thumb">
-                  <img src={photoPreview.preview} alt={`Preview ${index + 1}`} />
+                  {/*
+                    Пустой `url` означает, что под ключом в базе блоба нет:
+                    `getByPlantId` ставит на это место пустую строку, чтобы одна
+                    пропавшая фотография не обрушила остальные. Без ветки здесь
+                    оказался бы `<img src="">`.
+                  */}
+                  {photoPreview.url ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={photoPreview.url} alt={`Preview ${index + 1}`} />
+                  ) : (
+                    <span className="photo-thumb-missing">Photo unavailable</span>
+                  )}
                   <button
                     type="button"
                     onClick={() => handleRemovePhoto(index)}
@@ -378,10 +430,12 @@ export default function AddPlantForm({
             onChange={handleFileChange}
             className="field-input field-input--file"
           />
-          <p className="field-hint">
-            {photoPreviews.length === 0 
-              ? 'Upload at least one photo' 
-              : `You can add more photos (${photoPreviews.length} ${photoPreviews.length === 1 ? 'photo' : 'photos'} added)`}
+          <p className="field-hint" aria-live="polite">
+            {processing > 0
+              ? `Preparing ${processing} ${processing === 1 ? 'photo' : 'photos'}…`
+              : photoPreviews.length === 0
+                ? 'Upload at least one photo'
+                : `You can add more photos (${photoPreviews.length} ${photoPreviews.length === 1 ? 'photo' : 'photos'} added)`}
           </p>
         </div>
 
@@ -445,7 +499,7 @@ export default function AddPlantForm({
         <button type="button" onClick={onCancel} className="btn btn--secondary">
           Cancel
         </button>
-        <button type="submit" className="btn btn--primary">
+        <button type="submit" className="btn btn--primary" disabled={isSubmitting || processing > 0}>
           {initialPlant ? 'Save Changes' : 'Add Plant'}
         </button>
       </div>

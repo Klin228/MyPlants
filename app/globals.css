@@ -561,6 +561,20 @@ body {
   object-fit: cover;
 }
 
+/* Ключ в базе есть, а блоба под ним нет */
+.photo-thumb-missing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: var(--space-sm);
+  background-color: var(--color-surface-empty);
+  font-size: var(--text-xs);
+  color: var(--color-text-subtle);
+  text-align: center;
+}
+
 /* ---------- Поиск и сортировка ---------- */
 
 .toolbar {
