@@ -56,8 +56,13 @@ export default function StorageWarning() {
     const browser = detectInAppBrowser(navigator.userAgent, { standalone: isStandalone() })
     if (browser) {
       setWarning({ kind: 'in-app', browser, quotaMb: null })
-      // Заодно измеряем масштаб проблемы: имя приложения наше, не пользователя
-      track({ name: 'inapp_browser_detected', app: browser.app ?? 'unknown' })
+      // Заодно измеряем масштаб проблемы: имя приложения наше, не пользователя.
+      // Догадка по номеру сборки считается отдельно (H9) — иначе не узнать, как
+      // часто признак срабатывает и не ошибается ли он.
+      track({
+        name: 'inapp_browser_detected',
+        app: browser.app ?? (browser.certain ? 'unknown' : 'ios-webview-guess'),
+      })
       return
     }
 
@@ -90,15 +95,37 @@ export default function StorageWarning() {
       <div className="warning-body">
         {warning.kind === 'in-app' ? (
           <>
+            {/*
+              Три варианта текста, а не два, и различие не косметическое (H9).
+
+              Признак по номеру сборки может ошибиться, и тогда это сообщение
+              увидит человек в настоящем Safari. Утверждать там «вы внутри
+              приложения» и советовать «откройте в Safari» — говорить ерунду.
+              Поэтому у догадки свой текст: он предполагает, а не утверждает, и
+              совет в нём остаётся верным в любом случае.
+            */}
             <p className="warning-title">
               {warning.browser?.app
                 ? `You are inside ${warning.browser.app}'s built-in browser`
-                : 'You are inside an app’s built-in browser'}
+                : warning.browser?.certain
+                  ? 'You are inside an app’s built-in browser'
+                  : 'This may be an app’s built-in browser'}
             </p>
             <p className="warning-text">
-              A collection saved here stays inside this app. It will not be there when you open
-              Safari or Chrome later, and closing the app can wipe it.
-              {intent ? ' Open this page in Chrome first.' : ' Open this page in Safari first: tap the ⋯ menu, then “Open in Safari”.'}
+              {warning.browser?.certain === false ? (
+                <>
+                  If you opened this link from a messenger, the collection you save here stays
+                  inside that app: it will not be in Safari later, and closing the app can wipe it.
+                  Open this page in Safari — tap the ⋯ menu, then “Open in Safari” — or save a
+                  backup from the bottom of this page.
+                </>
+              ) : (
+                <>
+                  A collection saved here stays inside this app. It will not be there when you open
+                  Safari or Chrome later, and closing the app can wipe it.
+                  {intent ? ' Open this page in Chrome first.' : ' Open this page in Safari first: tap the ⋯ menu, then “Open in Safari”.'}
+                </>
+              )}
             </p>
             {intent && (
               <p className="warning-action">

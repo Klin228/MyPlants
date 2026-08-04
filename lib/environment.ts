@@ -20,7 +20,29 @@ export interface InAppBrowser {
   app: string | null
   /** Android умеет вытолкнуть страницу в Chrome, iOS — нет. */
   canEscape: boolean
+  /**
+   * Признак прямой или косвенный.
+   *
+   * `true` — приложение назвало себя, либо в строке агента нет `Safari/`: тут
+   * сомнений нет. `false` — вывод сделан по номеру сборки (см. ниже), и говорить
+   * человеку надо осторожнее, потому что ошибка возможна.
+   */
+  certain: boolean
 }
+
+/**
+ * Номер сборки, который настоящий Safari на iOS сообщает всегда.
+ *
+ * Apple заморозила его много версий назад: строка агента Safari на любом
+ * iPhone содержит `Mobile/15E148`, какой бы ни была система. Тот же
+ * замороженный номер копируют Chrome, Firefox и Edge на iOS — они тоже
+ * настоящие браузеры со своим постоянным хранилищем.
+ *
+ * `WKWebView` внутри чужого приложения ставит **настоящий** номер сборки
+ * системы. Отсюда признак: номер отличается — значит страница открыта не в
+ * браузере, а внутри приложения.
+ */
+const SAFARI_FROZEN_BUILD = '15E148'
 
 /**
  * Приложения, которые называют себя в строке агента.
@@ -56,7 +78,15 @@ const NAMED: [marker: string, app: string][] = [
  * - Android: метка `wv` в строке агента, её ставит системный `WebView`. Так
  *   ловится телеграм на андроиде, который себя не называет.
  * - iOS: у настоящего Safari в строке агента всегда есть `Safari/`. У
- *   `WKWebView` внутри чужого приложения его нет. Признак старый и надёжный.
+ *   `WKWebView` внутри чужого приложения его нет. Признак старый, но **уже не
+ *   покрывает главный для нас случай** — см. ниже.
+ * - iOS, второй заход: номер сборки. Телеграм на iPhone не называет себя и при
+ *   этом ставит `Safari/604.1`, то есть проходил мимо обоих признаков выше.
+ *   Владелец открыл приложение из телеграма и предупреждения не увидел —
+ *   строка агента оттуда: `… iPhone OS 18_7 … Version/26.5.2 Mobile/23F84
+ *   Safari/604.1`. Отличие от настоящего Safari в ней ровно одно: номер сборки
+ *   вместо замороженного `15E148`. Признак косвенный, поэтому помечается
+ *   `certain: false`.
  *
  * **Установленное на домашний экран приложение исключается отдельно, и это
  * главная ловушка.** Оно тоже работает в `WKWebView` без `Safari/` в строке
@@ -73,16 +103,36 @@ export function detectInAppBrowser(
   const isAndroid = userAgent.includes('Android')
 
   for (const [marker, app] of NAMED) {
-    if (userAgent.includes(marker)) return { app, canEscape: isAndroid }
+    if (userAgent.includes(marker)) return { app, canEscape: isAndroid, certain: true }
   }
 
   if (isAndroid && /;\s*wv[;)]/.test(userAgent)) {
-    return { app: null, canEscape: true }
+    return { app: null, canEscape: true, certain: true }
   }
 
   const isIos = /iPhone|iPad|iPod/.test(userAgent)
-  if (isIos && userAgent.includes('AppleWebKit') && !userAgent.includes('Safari/')) {
-    return { app: null, canEscape: false }
+  if (!isIos || !userAgent.includes('AppleWebKit')) return null
+
+  if (!userAgent.includes('Safari/')) {
+    return { app: null, canEscape: false, certain: true }
+  }
+
+  /*
+   * Номер сборки — последняя проверка, и она единственная, которая может
+   * ошибиться. Порядок поэтому такой: сначала имя приложения, потом прямые
+   * признаки, и только в конец догадка.
+   *
+   * Ошибиться она может в одну сторону: если Apple когда-нибудь разморозит номер,
+   * настоящий Safari попадёт под признак. Поэтому вывод помечен как
+   * предположение, и текст предупреждения для него другой — обещать человеку,
+   * что он «внутри приложения», по такому основанию нельзя.
+   *
+   * Номер отсутствует — молчим: `Mobile/` есть в строке агента всегда, и если
+   * формат изменился, догадываться не о чем.
+   */
+  const build = /\bMobile\/([A-Za-z0-9]+)/.exec(userAgent)
+  if (build && build[1] !== SAFARI_FROZEN_BUILD) {
+    return { app: null, canEscape: false, certain: false }
   }
 
   return null
