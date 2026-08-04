@@ -1889,33 +1889,30 @@ body {
     max(var(--space-3xl), var(--safe-bottom)) max(var(--space-lg), var(--safe-left));
 }
 
+/*
+ * Шапка витрины — тот же плотный столбик, что на главной (тикет G7).
+ *
+ * Классы взяты общие — `.headline` и `.headline-line`, — и это сознательное
+ * сужение правила «у витрины свои классы». Правило существует, чтобы правка
+ * внутреннего экрана не поехала на гостевую страницу; но плотный столбик это
+ * голос продукта, и он обязан быть одинаковым по обе стороны ссылки. Две копии
+ * одной типографики — это ровно тот способ разойтись, которым в F3 разъехался
+ * кроп фотографии.
+ */
 .showcase-header {
   margin-bottom: var(--space-2xl);
-  text-align: center;
 }
 
-.showcase-title {
-  margin: 0 0 var(--space-sm) 0;
-  font-family: var(--font-display);
-  font-size: var(--text-3xl);
-  font-weight: bold;
-  color: var(--color-text);
+/*
+ * Кегль столбика на витрине меньше, чем на главной.
+ *
+ * На главной первая строка всегда «MyPlants» — восемь знаков, и 12vw для неё
+ * безопасны. Здесь первая строка это название коллекции, которое ввёл человек, и
+ * предел у него 120 знаков: на 12vw такое название превратилось бы в стену.
+ */
+.showcase .headline-line {
+  font-size: clamp(1.75rem, 8vw, 3rem);
   overflow-wrap: anywhere;
-}
-
-.showcase-summary {
-  margin: 0;
-  font-size: var(--text-md);
-  color: var(--color-text-muted);
-}
-
-/* Стоимость коллекции — то, ради чего продукт вообще существует */
-.showcase-total {
-  margin: var(--space-md) 0 0 0;
-  font-family: var(--font-display);
-  font-size: var(--text-2xl);
-  font-weight: bold;
-  color: var(--color-accent);
 }
 
 /*
@@ -1946,14 +1943,23 @@ body {
   }
 }
 
+/*
+ * Карточка витрины без подложки, обводки и тени (тикет G7).
+ *
+ * То же решение, что на главной в G5: белый прямоугольник вокруг фотографии
+ * добавлял рамку, которая ничего не сообщала, а в сетке таких рамок столько же,
+ * сколько растений. Скругление переехало на саму фотографию.
+ *
+ * Разница с главной одна, и она в содержании, а не в оформлении: здесь под
+ * фотографией остаётся весь текст публикации — вид, цена, дата с источником,
+ * заметки. У гостя нет экрана растения, куда это можно было бы увести.
+ */
 .showcase-card {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  border-radius: var(--radius-lg);
-  background-color: var(--color-surface);
-  box-shadow: var(--shadow-sm);
+  background-color: transparent;
 }
+
 
 /*
  * Лента фотографий без единой строчки JavaScript.
@@ -1970,6 +1976,9 @@ body {
   /* Вертикаль отдаём странице, горизонталь — ленте */
   touch-action: pan-y pinch-zoom;
   scrollbar-width: none;
+  /* Скругление переехало сюда с карточки (G7): подложки у неё больше нет, и
+     скруглять надо саму фотографию. */
+  border-radius: var(--radius-lg);
 }
 
 .showcase-strip::-webkit-scrollbar {
@@ -2017,7 +2026,9 @@ body {
 }
 
 .showcase-body {
-  padding: var(--space-lg);
+  /* По бокам отступа нет: подписи выравниваются по краю фотографии, а не по краю
+     исчезнувшей подложки. */
+  padding: var(--space-sm) 0 0 0;
 }
 
 .showcase-name {

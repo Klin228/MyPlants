@@ -16,7 +16,7 @@ import { unstable_noStore as noStore } from 'next/cache'
 import { sql } from '@/lib/server/db'
 import { formatCalendarDate } from '@/lib/dates'
 import { frameRatio } from '@/lib/photoRatio'
-import { countSpecies, describeCollection } from '@/lib/collectionSummary'
+import { collectionLines, countSpecies, describeCollection } from '@/lib/collectionSummary'
 import PublicPageBeacon from '@/components/PublicPageBeacon'
 import type { SnapshotPhoto } from '@/lib/sharing/types'
 
@@ -166,13 +166,30 @@ export default async function CollectionPage({ params }: PageProps) {
 
   return (
     <div className="showcase">
-      <header className="showcase-header">
-        <h1 className="showcase-title">{collection.title || 'Plant collection'}</h1>
-        <p className="showcase-summary">{describeCollection(plants.length, countSpecies(plants))}</p>
+      {/*
+        Шапка — тот же плотный столбик, что на главной (тикет G7): название и
+        сумма тёмным, счёт и виды серым. Классы общие с внутренним экраном
+        намеренно — столбик это голос продукта, и по обе стороны ссылки он обязан
+        выглядеть одинаково.
 
-        {collection.total_price !== null && (
-          <p className="showcase-total">${Number(collection.total_price).toFixed(2)}</p>
-        )}
+        Сумма показывается только если владелец разрешил публиковать цены;
+        поэтому она стоит второй строкой, а не в конце: серые строки должны идти
+        подряд, иначе столбик распадается на части.
+      */}
+      <header className="showcase-header">
+        <div className="headline">
+          <h1 className="headline-line">{collection.title || 'Plant collection'}</h1>
+
+          {collection.total_price !== null && (
+            <p className="headline-line">${Number(collection.total_price).toFixed(2)}</p>
+          )}
+
+          {collectionLines(plants.length, countSpecies(plants)).map((line) => (
+            <p key={line} className="headline-line headline-line--quiet">
+              {line}
+            </p>
+          ))}
+        </div>
       </header>
 
       {plants.length === 0 ? (
