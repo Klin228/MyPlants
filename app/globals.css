@@ -311,6 +311,7 @@ body {
   max-width: 1200px;
   margin: 0 auto;
   min-height: 100vh;
+  min-height: 100dvh;
   background-color: var(--color-bg);
 }
 
@@ -318,7 +319,22 @@ body {
 .screen {
   display: flex;
   flex-direction: column;
+  /*
+   * `dvh`, а `vh` — только запасное значение для браузеров, которые `dvh` не
+   * знают (тикет H1).
+   *
+   * Safari на iOS считает `vh` по **самому большому** вьюпорту, не вычитая свою
+   * нижнюю панель. Экран в `100vh` поэтому выше видимой области, и нижний ряд
+   * кнопок — «Add plant», «Save changes», Edit с Delete на плашке растения —
+   * оказывался под панелью. Найдено владельцем на живом телефоне; я это
+   * предполагал в X1 и записал в чек-лист как то, что проверяется только на
+   * устройстве.
+   *
+   * Цена `dvh`: при появлении и скрытии панели высота меняется, то есть раскладка
+   * слегка дёргается на прокрутке. Это лучше недостижимой кнопки.
+   */
   height: 100vh;
+  height: 100dvh;
   background-color: var(--color-bg);
 }
 
@@ -358,6 +374,7 @@ body {
   align-items: center;
   justify-content: center;
   height: 100vh;
+  height: 100dvh;
   background-color: var(--color-bg);
 }
 
@@ -585,6 +602,21 @@ body {
 .card-menu {
   position: relative;
   flex: none;
+}
+
+/*
+ * Прозрачная подложка под открытым меню (тикет H2).
+ *
+ * Ловит нажатие мимо на себя, поэтому оно не доходит до карточки. Без неё тап
+ * мимо закрывал меню и тут же открывал растение — одно движение, два действия.
+ *
+ * `position: fixed` во весь экран, а не `absolute` внутри карточки: нажать мимо
+ * можно куда угодно, включая другую карточку и шапку.
+ */
+.card-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
 }
 
 /*
@@ -1091,13 +1123,30 @@ body {
   cursor: pointer;
 }
 
+/*
+ * Точки листания — в тёмной капсуле (тикет H3).
+ *
+ * Сами точки белые, и на светлом кадре их не было видно ровно по той же причине,
+ * по которой пропадала кнопка «назад»: белое на белом. Капсула с той же тёмной
+ * подложкой, что у кнопок поверх фотографии, решает это на любом кадре.
+ *
+ * Отступ от низа увеличен с `--space-md` до `--space-lg`: у карточки больше нет
+ * белой подложки, и точки почти касались строки с названием — на тёмной теме это
+ * читалось как «прилипли к границе». Найдено владельцем на живом телефоне.
+ */
 .gallery-dots {
   position: absolute;
-  bottom: var(--space-md);
+  bottom: var(--space-lg);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
+  align-items: center;
   gap: var(--space-sm);
+  padding: 5px var(--space-sm);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   z-index: 10;
 }
 
@@ -1116,6 +1165,13 @@ body {
   border-radius: var(--radius-xs);
   background-color: var(--color-dot-inactive);
   cursor: pointer;
+  /* Площадь касания больше самой точки: 8 пикселей пальцем не берутся, а
+     увеличивать саму точку значит менять вид. Владелец отметил, что попасть
+     трудно, — теперь по краям точки есть невидимый запас. */
+  box-sizing: content-box;
+  border-top: var(--space-sm) solid transparent;
+  border-bottom: var(--space-sm) solid transparent;
+  background-clip: padding-box;
   transition: width 0.2s ease-out, background-color 0.2s ease-out;
 }
 
@@ -1425,7 +1481,9 @@ body {
 .plant-screen {
   display: flex;
   flex-direction: column;
+  /* Как у `.screen`: `dvh` вычитает панель Safari, `vh` остаётся запасным */
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   background-color: var(--color-bg);
 }

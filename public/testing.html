@@ -35,6 +35,17 @@ h1{font-size:22px;margin:0 0 4px;letter-spacing:-.02em}
   padding:12px 14px;font-size:14px;line-height:1.5;margin:0 0 16px
 }
 .wrap{max-width:720px;margin:0 auto}
+.diag{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:14px;margin:0 0 16px
+}
+.diag h3{margin:0 0 8px;font-size:14px}
+.diag p{margin:0 0 10px;font-size:13px;color:var(--muted);line-height:1.5}
+.diag pre{
+  margin:0 0 10px;padding:10px;background:var(--bg);border-radius:8px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;line-height:1.5;
+  white-space:pre-wrap;word-break:break-all;max-height:190px;overflow:auto
+}
 .bar{
   position:sticky;top:0;z-index:20;background:var(--bg);
   padding:10px 0 12px;margin:0 0 8px;border-bottom:1px solid var(--line)
@@ -128,6 +139,19 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
 </header>
 
 <div class="wrap">
+  <!--
+    Диагностика устройства. Нужна там, где словами не объяснить: какая строка
+    агента у встроенного браузера мессенджера (пункт про телеграм) и чему на
+    самом деле равны инсеты выреза и высоты вьюпорта (пункты про safe-area и
+    панель Safari). Ничего никуда не отправляет — только показывает и копирует.
+  -->
+  <div class="diag">
+    <h3>Диагностика устройства</h3>
+    <p>Если какой-то пункт про вырез, панель Safari или встроенный браузер повёл себя странно — нажмите «Копировать» и пришлите этот текст. По нему видно то, что не видно на скриншоте.</p>
+    <pre id="diag-out">…</pre>
+    <button class="btn" id="diag-copy" type="button">Копировать диагностику</button>
+  </div>
+
   <div class="bar">
     <div class="track"><div class="fill" id="fill"></div></div>
     <div class="counts">
@@ -239,6 +263,65 @@ const DATA = [
 const KEY='myplants-testing-v1';
 let S={};
 try{ S=JSON.parse(localStorage.getItem(KEY)||'{}') }catch(e){ S={} }
+
+/* ---- диагностика устройства ---- */
+function collectDiag(){
+  /* Инсеты читаются с элемента-пробника: env() в JS напрямую не достать */
+  var probe=document.createElement('div');
+  probe.style.cssText='position:fixed;top:0;left:0;visibility:hidden;'
+    +'padding-top:env(safe-area-inset-top);padding-right:env(safe-area-inset-right);'
+    +'padding-bottom:env(safe-area-inset-bottom);padding-left:env(safe-area-inset-left)';
+  document.body.appendChild(probe);
+  var cs=getComputedStyle(probe);
+  var insets=['Top','Right','Bottom','Left'].map(function(side){
+    return side.toLowerCase()+' '+cs['padding'+side];
+  }).join(', ');
+  probe.remove();
+
+  /* Высоты: vh, dvh и то, что на самом деле видно */
+  var h=document.createElement('div');
+  h.style.cssText='position:fixed;visibility:hidden;height:100vh;width:1px';
+  document.body.appendChild(h);
+  var vh=h.getBoundingClientRect().height;
+  h.style.height='100dvh';
+  var dvh=h.getBoundingClientRect().height;
+  h.remove();
+
+  var vv=window.visualViewport;
+  var ua=navigator.userAgent;
+  return [
+    'userAgent: '+ua,
+    'есть Safari/: '+(ua.indexOf('Safari/')>-1),
+    'standalone: '+(('standalone' in navigator)?navigator.standalone:'нет свойства'),
+    'экран: '+screen.width+'×'+screen.height+' dpr '+window.devicePixelRatio,
+    'innerHeight: '+window.innerHeight,
+    'visualViewport: '+(vv?Math.round(vv.width)+'×'+Math.round(vv.height)+' offsetTop '+Math.round(vv.offsetTop):'нет'),
+    '100vh: '+Math.round(vh)+' | 100dvh: '+Math.round(dvh)+' | dvh поддержан: '+(CSS.supports&&CSS.supports('height','100dvh')),
+    'safe-area: '+insets,
+    'схема: '+(matchMedia('(prefers-color-scheme: dark)').matches?'тёмная':'светлая'),
+    'адрес: '+location.href
+  ].join('\n');
+}
+
+var diagText='';
+function renderDiag(){
+  diagText=collectDiag();
+  var out=document.getElementById('diag-out');
+  if(out) out.textContent=diagText;
+}
+renderDiag();
+if(window.visualViewport) window.visualViewport.addEventListener('resize',renderDiag);
+window.addEventListener('orientationchange',function(){ setTimeout(renderDiag,300) });
+
+var copyBtn=document.getElementById('diag-copy');
+if(copyBtn) copyBtn.addEventListener('click',function(){
+  var done=function(){ copyBtn.textContent='Скопировано'; setTimeout(function(){ copyBtn.textContent='Копировать диагностику' },1600) };
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(diagText).then(done,function(){ prompt('Скопируйте вручную:',diagText) });
+  } else {
+    prompt('Скопируйте вручную:',diagText);
+  }
+});
 
 const PL={ios:'iPhone',android:'Android'};
 const list=document.getElementById('list');

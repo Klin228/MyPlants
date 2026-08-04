@@ -68,22 +68,14 @@ export default function PlantCard({
   deleting,
 }: PlantCardProps) {
   const menuButtonRef = useRef<HTMLButtonElement>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
 
   /**
-   * Закрытие меню — по тем же правилам, что у списка сортировки в X2.
-   *
-   * Escape и выбор действия возвращают фокус на «…», нажатие мимо — не
-   * возвращает: фокус выдернулся бы из того, куда человек только что нажал.
+   * Escape закрывает меню и возвращает фокус на «…» — как у списка сортировки в
+   * X2. Нажатие мимо обрабатывает не этот слушатель, а подложка ниже: см.
+   * `.card-menu-backdrop`.
    */
   useEffect(() => {
     if (!menuOpen) return
-
-    const handlePointerDown = (event: Event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        onMenuToggle(false)
-      }
-    }
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
@@ -91,15 +83,8 @@ export default function PlantCard({
       menuButtonRef.current?.focus()
     }
 
-    document.addEventListener('mousedown', handlePointerDown)
-    document.addEventListener('touchstart', handlePointerDown)
     document.addEventListener('keydown', handleKeyDown)
-
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown)
-      document.removeEventListener('touchstart', handlePointerDown)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
+    return () => document.removeEventListener('keydown', handleKeyDown)
   }, [menuOpen, onMenuToggle])
 
   const closeMenu = () => {
@@ -133,7 +118,7 @@ export default function PlantCard({
           <span className="card-price">${plant.price.toFixed(2)}</span>
         </button>
 
-        <div className="card-menu" ref={menuRef}>
+        <div className="card-menu">
           <button
             ref={menuButtonRef}
             type="button"
@@ -145,6 +130,30 @@ export default function PlantCard({
           >
             <MoreHorizontal size={18} color="currentColor" />
           </button>
+
+          {/*
+            Нажатие мимо закрывает меню — и на этом всё (тикет H2).
+            
+            Раньше это делал слушатель на документе, и тап мимо закрывал меню, а
+            следом попадал по карточке под пальцем и открывал растение: одно
+            движение давало два действия, причём второе — незапрошенный переход.
+            Найдено владельцем на живом телефоне.
+            
+            Прозрачная подложка ловит тап на себя, поэтому до карточки он не
+            доходит вовсе. Это надёжнее, чем гасить событие по времени: на
+            телефоне между `touchstart` и `click` проходит до 300 миллисекунд, и
+            любая такая проверка держится на догадке о задержке.
+            
+            Фокус при закрытии подложкой не возвращается — он выдернулся бы из
+            того, куда человек нажал.
+          */}
+          {menuOpen && (
+            <div
+              className="card-menu-backdrop"
+              onClick={() => onMenuToggle(false)}
+              aria-hidden="true"
+            />
+          )}
 
           {menuOpen && (
             <div className="card-menu-popover">
