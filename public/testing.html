@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#8d80ad">
+<title>MyPlants — проверка на телефоне</title>
+<style>
+:root{
+  --bg:#f4f2f6; --card:#fff; --text:#1b2021; --muted:#6b6b73; --line:#dcd8e2;
+  --accent:#8d80ad; --ok:#1d7a3d; --okbg:#e8f5ec; --bad:#b3261e; --badbg:#fdecea;
+  --pad:16px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#141317; --card:#1e1d22; --text:#f0eef2; --muted:#9a96a3; --line:#33313a;
+    --accent:#a99bc9; --ok:#6ddc94; --okbg:#16301f; --bad:#ff8a80; --badbg:#33191a;
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  padding:0 var(--pad) 96px;
+  padding-left:max(var(--pad),env(safe-area-inset-left));
+  padding-right:max(var(--pad),env(safe-area-inset-right));
+}
+header{padding:max(20px,env(safe-area-inset-top)) 0 8px;max-width:720px;margin:0 auto}
+h1{font-size:22px;margin:0 0 4px;letter-spacing:-.02em}
+.sub{color:var(--muted);font-size:14px;margin:0 0 14px}
+.warn{
+  background:var(--badbg);border-left:3px solid var(--bad);border-radius:0 8px 8px 0;
+  padding:12px 14px;font-size:14px;line-height:1.5;margin:0 0 16px
+}
+.wrap{max-width:720px;margin:0 auto}
+.bar{
+  position:sticky;top:0;z-index:20;background:var(--bg);
+  padding:10px 0 12px;margin:0 0 8px;border-bottom:1px solid var(--line)
+}
+.track{height:7px;border-radius:4px;background:var(--line);overflow:hidden}
+.fill{height:100%;width:0;background:var(--accent);transition:width .25s ease}
+.counts{display:flex;gap:14px;font-size:13px;color:var(--muted);margin-top:8px;flex-wrap:wrap}
+.counts b{color:var(--text);font-weight:600}
+h2{
+  font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);
+  margin:26px 0 10px;font-weight:600
+}
+.item{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:14px;margin:0 0 10px
+}
+.item[data-state="ok"]{border-color:var(--ok);background:var(--okbg)}
+.item[data-state="bad"]{border-color:var(--bad);background:var(--badbg)}
+.top{display:flex;gap:10px;align-items:flex-start}
+.num{
+  flex:0 0 26px;height:26px;border-radius:50%;background:var(--line);color:var(--muted);
+  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600
+}
+.item[data-state="ok"] .num{background:var(--ok);color:#fff}
+.item[data-state="bad"] .num{background:var(--bad);color:#fff}
+.ttl{font-weight:600;font-size:16px;line-height:1.35;flex:1}
+.why{font-size:14px;color:var(--muted);margin:8px 0 0;padding-left:36px;line-height:1.5}
+.why code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;
+  background:var(--line);padding:1px 5px;border-radius:4px
+}
+.plat{
+  display:inline-block;font-size:11px;font-weight:600;letter-spacing:.04em;
+  background:var(--line);color:var(--muted);padding:2px 7px;border-radius:5px;
+  margin-left:6px;vertical-align:2px;text-transform:uppercase
+}
+.acts{display:flex;gap:8px;margin:12px 0 0;padding-left:36px;flex-wrap:wrap}
+button{font:inherit;cursor:pointer}
+.btn{
+  min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--line);
+  background:var(--card);color:var(--text);font-size:15px;font-weight:500;
+  display:inline-flex;align-items:center;gap:6px
+}
+.btn[aria-pressed="true"].y{background:var(--ok);border-color:var(--ok);color:#fff}
+.btn[aria-pressed="true"].n{background:var(--bad);border-color:var(--bad);color:#fff}
+.note{
+  width:100%;margin:10px 0 0;padding:11px 12px;border:1px solid var(--line);
+  border-radius:10px;background:var(--card);color:var(--text);font:inherit;font-size:15px;
+  resize:none;overflow:hidden;min-height:44px;display:block
+}
+.note::placeholder{color:var(--muted)}
+.note:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.foot{
+  position:fixed;left:0;right:0;bottom:0;z-index:30;
+  background:var(--card);border-top:1px solid var(--line);
+  padding:10px max(var(--pad),env(safe-area-inset-left)) max(10px,env(safe-area-inset-bottom));
+  display:flex;gap:8px
+}
+.foot .btn{flex:1;justify-content:center;background:var(--accent);color:#fff;border-color:var(--accent)}
+.foot .btn.ghost{background:var(--card);color:var(--text);border-color:var(--line);flex:0 0 auto}
+dialog{
+  border:none;border-radius:14px;padding:0;max-width:min(680px,94vw);width:100%;
+  background:var(--card);color:var(--text)
+}
+dialog::backdrop{background:rgba(0,0,0,.55)}
+.dlg{padding:16px}
+.dlg h3{margin:0 0 10px;font-size:17px}
+.dlg textarea{
+  width:100%;min-height:46vh;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
+  border:1px solid var(--line);border-radius:10px;padding:11px;background:var(--bg);
+  color:var(--text);resize:vertical
+}
+.dlg .row{display:flex;gap:8px;margin-top:10px}
+.dlg .row .btn{flex:1;justify-content:center}
+.saved{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:80px;z-index:40;
+  background:var(--text);color:var(--bg);padding:8px 16px;border-radius:99px;
+  font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s
+}
+.saved.on{opacity:.94}
+</style>
+</head>
+<body>
+
+<header class="wrap">
+  <h1>Проверка на телефоне</h1>
+  <p class="sub">Тикеты F1 и F2. Проверять на <a href="https://my-plants-eta.vercel.app" style="color:var(--accent)">my-plants-eta.vercel.app</a></p>
+  <div class="warn">
+    Отметки и комментарии хранятся в этом браузере. <b>Перед тем как чистить данные сайта — нажмите «Отчёт» и скопируйте текст</b>, иначе записи пропадут вместе с данными приложения.
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="bar">
+    <div class="track"><div class="fill" id="fill"></div></div>
+    <div class="counts">
+      <span>Пройдено <b id="c-done">0</b> из <b id="c-all">0</b></span>
+      <span style="color:var(--ok)">Работает <b id="c-ok">0</b></span>
+      <span style="color:var(--bad)">Проблем <b id="c-bad">0</b></span>
+    </div>
+  </div>
+  <div id="list"></div>
+</div>
+
+<div class="foot">
+  <button class="btn" id="report">Отчёт</button>
+  <button class="btn ghost" id="reset" aria-label="Сбросить всё">Сброс</button>
+</div>
+
+<div class="saved" id="saved">сохранено</div>
+
+<dialog id="dlg">
+  <div class="dlg">
+    <h3>Отчёт — скопируйте и пришлите</h3>
+    <textarea id="out" readonly></textarea>
+    <div class="row">
+      <button class="btn" id="copy">Скопировать</button>
+      <button class="btn ghost" id="close">Закрыть</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+const DATA = [
+  {g:'Жесты — то, ради чего тикет заведён'},
+  {n:1,p:['ios','android'],t:'Листание фотографий свайпом влево-вправо',
+   w:'Лента должна идти <b>за пальцем</b>, а не прыгать на отпускании. На краях — сопротивление, а не пустота.'},
+  {n:2,p:['ios','android'],t:'Короткий быстрый флик листает так же, как длинный свайп',
+   w:'Порог по времени 250 мс и сдвигу 20 px. Если флик не листает — порог слишком строгий.'},
+  {n:3,p:['ios','android'],t:'Прокрутка страницы пальцем поверх фотографии',
+   w:'Страница прокручивается, полноэкранный просмотр <b>не открывается</b>. Это была главная жалоба до переделки: ось жеста не определялась, и вертикальный скролл открывал фото.'},
+  {n:4,p:['ios','android'],t:'Тап открывает полноэкранный просмотр, удержание — нет',
+   w:'Тап определяется по сдвигу меньше 10 px и времени меньше 400 мс.'},
+  {n:5,p:['ios','android'],t:'Тап по точке под фотографией переключает кадр и не открывает просмотр',
+   w:'Точки — настоящие кнопки, событие не должно доходить до обработчика галереи.'},
+  {n:6,p:['ios','android'],t:'Касание у самого левого края экрана',
+   w:'Там координата X равна нулю. На прежней версии проверка <code>if (!touchStart)</code> считала это отсутствием касания и жест не работал.'},
+  {n:7,p:['ios','android'],t:'В полноэкранном: листание, щипок, панорамирование, закрытие свайпом вниз',
+   w:'Увеличенное фото не должно уезжать за границы. Фон гаснет по мере оттягивания.'},
+  {n:8,p:['ios'],t:'Двадцать карточек и стрелки на внешней клавиатуре',
+   w:'Если клавиатуры нет — пропустите. Раньше слушатель висел на <code>window</code> в каждой галерее и стрелки листали все карточки разом.'},
+
+  {g:'Хвосты этапа D — интерфейс'},
+  {n:9,p:['ios'],t:'Тёмная тема на всех экранах',
+   w:'Включить системную тёмную и пройти: главная, форма добавления, экран растения, полноэкранный просмотр, диалог публикации, витрина.'},
+  {n:10,p:['ios'],t:'«Уменьшить движение»',
+   w:'Настройки → Универсальный доступ → Движение. Пульсация скелетонов должна остановиться, лента после отпускания доезжать мгновенно. Правило проверено чтением кода, отрисованный результат — нет.'},
+  {n:11,p:['ios'],t:'Контраст светлой темы на солнце',
+   w:'Выйти на улицу с экраном на светлой теме. Тикет D9 закрыт, но замер был расчётный — на солнце разница видна лучше всего.'},
+  {n:12,p:['ios'],t:'Вырез и safe-area, портрет и ландшафт',
+   w:'<code>viewportFit: cover</code> включён, отступы расставлены подстановкой значений iPhone 15 Pro, но на устройстве с вырезом не проверялись ни разу. Ничто не должно уходить под вырез и под полосу жестов — и наоборот, не должно появиться лишних полей.'},
+  {n:13,p:['ios'],t:'Кнопки формы при показанной панели Safari',
+   w:'<code>.screen</code> задан в <code>100vh</code>, а Safari считает <code>vh</code> по самому большому вьюпорту, не вычитая свою панель. Если «Add plant» не дотягивается — лечится переходом на <code>100dvh</code>.'},
+
+  {g:'Хвосты этапа E — сохранность'},
+  {n:14,p:['ios','android'],t:'Открыть ссылку из телеграма',
+   w:'Отправить себе ссылку на коллекцию и открыть <b>из телеграма</b>. Должна появиться плашка про встроенный браузер. На андроиде — кнопка «Open in Chrome»: проверить, что действительно открывает Chrome. У меня проверено только подменой строки агента, а <code>intent://</code> подменой не проверяется вовсе.'},
+  {n:15,p:['ios'],t:'Установка на домашний экран',
+   w:'Поделиться → На экран «Домой». Открыть с домашнего экрана: плашка про установку должна исчезнуть, в PostHog появиться <code>a2hs_confirmed</code>. Это же снимает семидневное удаление данных в Safari.'},
+  {n:16,p:['ios'],t:'Постоянное хранилище',
+   w:'На чистом устройстве добавить первое растение и посмотреть в консоли Safari строку «Постоянное хранилище: true/false». Chrome на локальном адресе отказывал; как решит Safari у настоящего пользователя — видно только так.'},
+  {n:17,p:['ios','android'],t:'Сжатие настоящего снимка с камеры',
+   w:'Добавить растение фотографией прямо с камеры (3–8 МБ) и посмотреть занятое место в блоке о хранилище: должно вырасти на <b>сотни килобайт, не на мегабайты</b>. У меня были синтетические картинки.'},
+  {n:18,p:['ios'],t:'Размер резервной копии',
+   w:'Сохранить копию на коллекции из 10–20 настоящих фотографий и посмотреть вес файла. Оценка была 10–20 МБ на сорок растений, но это расчёт, а не замер.'},
+  {n:19,p:['ios'],t:'События в PostHog',
+   w:'Раздел Activity: должны идти <code>public_page_viewed</code>, <code>plant_added</code>, <code>publish_completed</code> и остальные. Приёмник отвечает «Ok» даже на выдуманный ключ, поэтому доставку подтверждает только этот экран.'},
+
+  {g:'F2 — память. Нужен мак с кабелем'},
+  {n:20,p:['ios'],t:'Утечка указателей на блобы',
+   w:'Добавить двадцать растений по три фотографии. Полистать всё, открыть и закрыть полноэкранный просмотр раз двадцать. В Safari Web Inspector (Safari на маке → Разработка → ваш iPhone) посмотреть график памяти. <b>Память должна возвращаться к исходной</b> после закрытия просмотрщика — это и есть проверка того, что object URL освобождаются.'},
+
+  {g:'Свободные наблюдения'},
+  {n:21,p:[],t:'Что показалось неудобным, помимо списка',
+   w:'Любое: непонятная надпись, мелкая кнопка, лишний шаг, странная анимация. Такие замечания обычно ценнее пунктов по списку.'},
+  {n:22,p:[],t:'Сколько времени заняло внести первое растение',
+   w:'От открытия приложения до сохранённой карточки. Если больше двух минут — это проблема воронки, а не мелочь.'}
+];
+
+const KEY='myplants-testing-v1';
+let S={};
+try{ S=JSON.parse(localStorage.getItem(KEY)||'{}') }catch(e){ S={} }
+
+const PL={ios:'iPhone',android:'Android'};
+const list=document.getElementById('list');
+let html='';
+for(const row of DATA){
+  if(row.g){ html+='<h2>'+row.g+'</h2>'; continue }
+  const id='i'+row.n;
+  html+='<div class="item" id="'+id+'" data-state="">'
+    +'<div class="top"><div class="num">'+row.n+'</div><div class="ttl">'+row.t
+    +(row.p||[]).map(p=>'<span class="plat">'+PL[p]+'</span>').join('')+'</div></div>'
+    +'<p class="why">'+row.w+'</p>'
+    +'<div class="acts">';
+  if((row.p||[]).length>1){
+    for(const p of row.p){
+      html+='<button class="btn y" data-k="'+row.n+':'+p+'" data-v="ok" aria-pressed="false">'+PL[p]+' ок</button>'
+           +'<button class="btn n" data-k="'+row.n+':'+p+'" data-v="bad" aria-pressed="false">'+PL[p]+' нет</button>';
+    }
+  }else{
+    html+='<button class="btn y" data-k="'+row.n+'" data-v="ok" aria-pressed="false">Работает</button>'
+         +'<button class="btn n" data-k="'+row.n+'" data-v="bad" aria-pressed="false">Проблема</button>';
+  }
+  html+='</div><textarea class="note" data-note="'+row.n+'" rows="1" placeholder="Комментарий, если есть…"></textarea></div>';
+}
+list.innerHTML=html;
+
+function grow(el){ el.style.height='auto'; el.style.height=el.scrollHeight+'px' }
+
+function paint(){
+  let done=0,ok=0,bad=0,total=0;
+  for(const row of DATA){
+    if(row.g) continue;
+    total++;
+    const keys=(row.p||[]).length>1 ? row.p.map(p=>row.n+':'+p) : [String(row.n)];
+    const vals=keys.map(k=>S[k]).filter(Boolean);
+    const el=document.getElementById('i'+row.n);
+    let state='';
+    if(vals.length){
+      done++;
+      if(vals.includes('bad')){ state='bad'; bad++ } else { state='ok'; ok++ }
+    }
+    el.dataset.state=state;
+  }
+  document.getElementById('c-done').textContent=done;
+  document.getElementById('c-all').textContent=total;
+  document.getElementById('c-ok').textContent=ok;
+  document.getElementById('c-bad').textContent=bad;
+  document.getElementById('fill').style.width=(total?done/total*100:0)+'%';
+  document.querySelectorAll('.btn[data-k]').forEach(b=>{
+    b.setAttribute('aria-pressed', S[b.dataset.k]===b.dataset.v ? 'true':'false');
+  });
+}
+
+let t=null;
+function save(){
+  try{ localStorage.setItem(KEY,JSON.stringify(S)) }catch(e){}
+  const s=document.getElementById('saved');
+  s.classList.add('on'); clearTimeout(t); t=setTimeout(()=>s.classList.remove('on'),900);
+}
+
+list.addEventListener('click',e=>{
+  const b=e.target.closest('.btn[data-k]'); if(!b) return;
+  const k=b.dataset.k;
+  S[k] = S[k]===b.dataset.v ? undefined : b.dataset.v;
+  if(!S[k]) delete S[k];
+  paint(); save();
+});
+
+list.addEventListener('input',e=>{
+  const n=e.target.closest('.note'); if(!n) return;
+  grow(n);
+  const k='note:'+n.dataset.note;
+  if(n.value.trim()) S[k]=n.value; else delete S[k];
+  save();
+});
+
+document.querySelectorAll('.note').forEach(n=>{
+  const v=S['note:'+n.dataset.note]; if(v){ n.value=v }
+  grow(n);
+});
+paint();
+
+function report(){
+  const d=new Date().toISOString().slice(0,10);
+  let out='# Проверка на телефоне — '+d+'\n\n';
+  let done=0,total=0,bad=[];
+  for(const row of DATA){ if(!row.g) total++ }
+  for(const row of DATA){
+    if(row.g){ out+='\n## '+row.g+'\n\n'; continue }
+    const multi=(row.p||[]).length>1;
+    const keys=multi ? row.p.map(p=>row.n+':'+p) : [String(row.n)];
+    const vals=keys.map(k=>S[k]).filter(Boolean);
+    if(vals.length) done++;
+    if(vals.includes('bad')) bad.push(row.n+'. '+row.t);
+    let mark='[ ]';
+    if(vals.length) mark = vals.includes('bad') ? '[!]' : '[x]';
+    out+=mark+' '+row.n+'. '+row.t;
+    if(multi){
+      const parts=row.p.map(p=>PL[p]+': '+(S[row.n+':'+p]==='ok'?'ок':S[row.n+':'+p]==='bad'?'ПРОБЛЕМА':'не проверял'));
+      out+='\n    '+parts.join(' · ');
+    }
+    const note=S['note:'+row.n];
+    if(note) out+='\n    → '+note.replace(/\n/g,'\n      ');
+    out+='\n';
+  }
+  out='# Проверка на телефоне — '+d+'\n\nПройдено '+done+' из '+total
+     +(bad.length?'\nПроблем: '+bad.length:'\nПроблем нет')+'\n'
+     + (bad.length? '\n**Требует внимания:**\n'+bad.map(b=>'- '+b).join('\n')+'\n':'')
+     + out.slice(out.indexOf('\n\n'));
+  return out;
+}
+
+const dlg=document.getElementById('dlg');
+document.getElementById('report').onclick=()=>{
+  document.getElementById('out').value=report();
+  dlg.showModal();
+};
+document.getElementById('close').onclick=()=>dlg.close();
+document.getElementById('copy').onclick=async()=>{
+  const ta=document.getElementById('out');
+  try{
+    await navigator.clipboard.writeText(ta.value);
+    document.getElementById('copy').textContent='Скопировано';
+    setTimeout(()=>document.getElementById('copy').textContent='Скопировать',1400);
+  }catch(e){
+    ta.removeAttribute('readonly'); ta.select(); ta.setSelectionRange(0,ta.value.length);
+    document.getElementById('copy').textContent='Выделено — скопируйте';
+  }
+};
+document.getElementById('reset').onclick=()=>{
+  if(!confirm('Стереть все отметки и комментарии?')) return;
+  S={}; try{ localStorage.removeItem(KEY) }catch(e){}
+  document.querySelectorAll('.note').forEach(n=>{n.value='';grow(n)});
+  paint();
+};
+</script>
+</body>
+</html>
