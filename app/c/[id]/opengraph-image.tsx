@@ -17,7 +17,7 @@ import { join } from 'node:path'
 import { unstable_noStore as noStore } from 'next/cache'
 import { ImageResponse } from 'next/og'
 import { sql } from '@/lib/server/db'
-import { countSpecies, describeCollection } from '@/lib/collectionSummary'
+import { describeCollection } from '@/lib/collectionSummary'
 import type { SnapshotPhoto } from '@/lib/sharing/types'
 
 export const runtime = 'nodejs'
@@ -140,7 +140,7 @@ async function query(id: string): Promise<PosterData | null> {
 
   return {
     title: truncate(collection.title || 'Plant collection', 60),
-    summary: describeCollection(plants.length, countSpecies(plants)),
+    summary: describeCollection(plants.length),
     totalPrice: collection.total_price === null ? null : Number(collection.total_price).toFixed(2),
     covers,
   }

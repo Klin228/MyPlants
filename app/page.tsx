@@ -14,7 +14,7 @@ import { photosRepository, type PhotoSize } from '@/lib/repositories/photosRepos
 import { initializeDatabase } from '@/lib/repositories/migration'
 import { frameRatio } from '@/lib/photoRatio'
 import { speciesKey } from '@/lib/species'
-import { collectionLines, countSpecies } from '@/lib/collectionSummary'
+import { collectionLines } from '@/lib/collectionSummary'
 import type { Plant } from '@/lib/models/plant'
 
 /**
@@ -221,7 +221,7 @@ export default function Home() {
    * на поиск даёт отдельная строка под тулбаром.
    */
   const totalPrice = loaded.reduce((sum, plant) => sum + plant.price, 0)
-  const summaryLines = collectionLines(loaded.length, countSpecies(loaded))
+  const summaryLines = collectionLines(loaded.length)
 
   /**
    * Закрыть список и вернуть фокус на кнопку.
@@ -292,9 +292,13 @@ export default function Home() {
       {/*
         Шапка — плотный столбик строк (тикет G2).
         
-        Название и сумма тёмные, счёт и виды серые: так задал владелец. Строки
+        Название и сумма тёмные, число растений серое: так задал владелец. Строки
         идут вплотную, межстрочное меньше кегля — от этого столбик читается как
-        одна плотная фигура, а не как четыре подписи.
+        одна плотная фигура, а не как три подписи.
+        
+        Виды из сводки убраны после проверки на живой коллекции: поле
+        необязательное, и «6 plants · 1 species» сообщало не разнообразие, а то,
+        сколько раз человек заполнил поле. Причина записана в `collectionSummary`.
         
         Прокручивается вместе с содержимым, а не прилипает: на телефоне липкая
         шапка навсегда съела бы место у того, ради чего экран существует, — у

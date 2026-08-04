@@ -16,7 +16,7 @@ import { unstable_noStore as noStore } from 'next/cache'
 import { sql } from '@/lib/server/db'
 import { formatCalendarDate } from '@/lib/dates'
 import { frameRatio } from '@/lib/photoRatio'
-import { collectionLines, countSpecies, describeCollection } from '@/lib/collectionSummary'
+import { collectionLines, describeCollection } from '@/lib/collectionSummary'
 import PublicPageBeacon from '@/components/PublicPageBeacon'
 import type { SnapshotPhoto } from '@/lib/sharing/types'
 
@@ -129,7 +129,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const { collection, plants } = data
   const title = collection.title || 'Plant collection'
-  const description = describeCollection(plants.length, countSpecies(plants))
+  const description = describeCollection(plants.length)
 
   return {
     title,
@@ -168,13 +168,12 @@ export default async function CollectionPage({ params }: PageProps) {
     <div className="showcase">
       {/*
         Шапка — тот же плотный столбик, что на главной (тикет G7): название и
-        сумма тёмным, счёт и виды серым. Классы общие с внутренним экраном
+        сумма тёмным, число растений серым. Классы общие с внутренним экраном
         намеренно — столбик это голос продукта, и по обе стороны ссылки он обязан
         выглядеть одинаково.
 
-        Сумма показывается только если владелец разрешил публиковать цены;
-        поэтому она стоит второй строкой, а не в конце: серые строки должны идти
-        подряд, иначе столбик распадается на части.
+        Сумма показывается только если владелец разрешил публиковать цены; она
+        стоит второй строкой, чтобы тёмные строки шли подряд, а серая была снизу.
       */}
       <header className="showcase-header">
         <div className="headline">
@@ -184,7 +183,7 @@ export default async function CollectionPage({ params }: PageProps) {
             <p className="headline-line">${Number(collection.total_price).toFixed(2)}</p>
           )}
 
-          {collectionLines(plants.length, countSpecies(plants)).map((line) => (
+          {collectionLines(plants.length).map((line) => (
             <p key={line} className="headline-line headline-line--quiet">
               {line}
             </p>
