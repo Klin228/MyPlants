@@ -115,7 +115,11 @@ export default function PlantCard({
         */}
         <button type="button" className="card-open" onClick={() => onOpen(plant)}>
           <span className="card-title">{plant.name}</span>
-          <span className="card-price">${plant.price.toFixed(2)}</span>
+          {/* Без цены строка просто отсутствует: $0.00 у растения без цены —
+              это неправда, а не заглушка (J5) */}
+          {plant.price !== undefined && (
+            <span className="card-price">${plant.price.toFixed(2)}</span>
+          )}
         </button>
 
         <div className="card-menu">

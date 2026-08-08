@@ -151,7 +151,11 @@ export default function PlantPage() {
             <div className="plant-sheet-body">
               <h1 className="plant-name">{plant.name}</h1>
               {plant.species && <p className="plant-species">{plant.species}</p>}
-              <p className="plant-price">${plant.price.toFixed(2)}</p>
+              {/* Цены может не быть — строка тогда не рисуется вовсе, а не
+                  показывает $0.00 (J5) */}
+              {plant.price !== undefined && (
+                <p className="plant-price">${plant.price.toFixed(2)}</p>
+              )}
 
               {provenance.length > 0 && <p className="plant-meta">{provenance.join(' · ')}</p>}
 

@@ -156,7 +156,7 @@ export default function AddPlantForm({
     if (initialPlant) {
       setName(initialPlant.name)
       setSpecies(initialPlant.species || '')
-      setPrice(initialPlant.price.toString())
+      setPrice(initialPlant.price === undefined ? '' : initialPlant.price.toString())
       setAcquiredOn(initialPlant.acquiredOn || '')
       setSource(initialPlant.source || '')
       setNotes(initialPlant.notes || '')
@@ -367,22 +367,32 @@ export default function AddPlantForm({
     }
 
     /*
-     * Ноль допустим, и это не смягчение проверки.
+     * Цена необязательна (тикет J5), и пустое поле — законный ответ, а не
+     * недозаполненная форма.
      *
-     * Восстановление из публикации без цен ставит `price: 0` осознанно, а
-     * главный экран прямо утверждает, что коллекция с незаполненными ценами
-     * даёт законный ноль. С прежним условием `<= 0` такое растение нельзя было
-     * даже переименовать, не выдумав цену. Поймано независимым ревью (F3).
+     * Три состояния, а не два: пусто — «не указана», ноль — известная цена
+     * (подарок, черенок от подруги), число — цена. Первые два раньше
+     * схлопывались в ноль, потому что деться от обязательного поля было некуда.
+     *
+     * Проверка осталась только на введённое: мусор в поле по-прежнему не
+     * пропускаем. Ноль допустим — с прежним условием `<= 0` подаренное растение
+     * нельзя было даже переименовать, не выдумав цену (поймано ревью F3).
      */
-    const parsedPrice = parseFloat(price)
-    if (isNaN(parsedPrice) || parsedPrice < 0) {
-      alert('Please enter a price (0 or more)')
-      return
+    const trimmedPrice = price.trim()
+    let parsedPrice: number | undefined
+
+    if (trimmedPrice !== '') {
+      const value = parseFloat(trimmedPrice)
+      if (isNaN(value) || value < 0) {
+        alert('Price should be a number, 0 or more — or left empty')
+        return
+      }
+      parsedPrice = value
     }
 
     // Верхняя граница та же, что у публикации: `maxLength` цену не ограничивает,
     // а `1e308` в поле — это не жадность, а мусор, который потом не уедет.
-    if (parsedPrice > LIMITS.maxPrice) {
+    if (parsedPrice !== undefined && parsedPrice > LIMITS.maxPrice) {
       alert(`That price is too large. At most ${LIMITS.maxPrice.toLocaleString('en-US')}.`)
       return
     }
@@ -445,6 +455,18 @@ export default function AddPlantForm({
     <form onSubmit={handleSubmit} className="form">
       {/* Form Fields - Scrollable */}
       <div className="form-fields">
+        {/*
+          Правило обязательности названо словами, а не только звёздочками (J5).
+
+          Раньше подписи говорили три разные вещи сразу: у одних полей стояла
+          звёздочка, у других «(optional)», у третьих ничего — и «Species:» без
+          пометки читалось как «наверное, тоже надо». Обязательных всего два,
+          поэтому правило проще назвать, чем размечать каждое поле.
+        */}
+        <p className="field-legend">
+          Only <b>name</b> and <b>photo</b> are required — everything else is up to you.
+        </p>
+
         <div className="field">
           <label className="field-label">
             Plant name: <span className="field-required">*</span>
@@ -563,8 +585,8 @@ export default function AddPlantForm({
         </div>
 
         <div className="field">
-          <label className="field-label">
-            Price: <span className="field-required">*</span>
+          <label className="field-label" htmlFor="plant-price">
+            Price:
           </label>
           <input
             type="number"
@@ -574,13 +596,13 @@ export default function AddPlantForm({
             value={price}
             onChange={(e) => setPrice(e.target.value)}
             className="field-input"
-            required
+            id="plant-price"
           />
         </div>
 
         <div className="field">
           <label className="field-label" htmlFor="plant-acquired-on">
-            Acquired (optional):
+            Acquired:
           </label>
           <input
             id="plant-acquired-on"
@@ -594,7 +616,7 @@ export default function AddPlantForm({
 
         <div className="field">
           <label className="field-label" htmlFor="plant-source">
-            Source (optional):
+            Source:
           </label>
           <input
             id="plant-source"
@@ -608,8 +630,9 @@ export default function AddPlantForm({
         </div>
 
         <div className="field">
-          <label className="field-label">Notes (optional):</label>
+          <label className="field-label" htmlFor="plant-notes">Notes:</label>
           <textarea
+            id="plant-notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={4}

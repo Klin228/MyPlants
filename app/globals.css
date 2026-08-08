@@ -923,6 +923,25 @@ body {
   resize: vertical;
 }
 
+/*
+ * Пояснение об обязательных полях — над первым полем формы (J5).
+ *
+ * Отбито снизу сильнее, чем подписи полей: это правило для всей формы, а не
+ * подпись к чему-то одному, и слипшись с первым полем оно читалось бы как его
+ * подсказка.
+ */
+.field-legend {
+  margin: 0 0 var(--space-xl) 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.field-legend b {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
 .field-hint {
   margin: var(--space-sm) 0 0 0;
   font-size: var(--text-xs);
@@ -2179,6 +2198,20 @@ body {
  */
 .showcase-header {
   margin-bottom: var(--space-2xl);
+}
+
+/*
+ * Сноска под столбиком заголовка (тикет J5).
+ *
+ * Отбита сверху и набрана мелко намеренно: это оговорка к сумме, а не четвёртая
+ * строка столбика. В столбике она набиралась бы теми же 12vw и кричала громче
+ * самой суммы — проверено на отрисованной странице.
+ */
+.headline-note {
+  margin: var(--space-md) 0 0 0;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: var(--color-text-muted);
 }
 
 /*

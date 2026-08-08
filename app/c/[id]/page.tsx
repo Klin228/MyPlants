@@ -16,7 +16,7 @@ import { unstable_noStore as noStore } from 'next/cache'
 import { sql } from '@/lib/server/db'
 import { formatCalendarDate } from '@/lib/dates'
 import { frameRatio } from '@/lib/photoRatio'
-import { collectionLines, describeCollection } from '@/lib/collectionSummary'
+import { collectionLines, describeCollection, pricesCaveat } from '@/lib/collectionSummary'
 import PublicPageBeacon from '@/components/PublicPageBeacon'
 import type { SnapshotPhoto } from '@/lib/sharing/types'
 
@@ -188,6 +188,17 @@ export default async function CollectionPage({ params }: PageProps) {
               {line}
             </p>
           ))}
+
+          {/*
+            Оговорка про цены — только когда цены вообще опубликованы (J5). Если
+            владелец их не публиковал, цена пустая у всех растений, и оговорка
+            рассказывала бы гостю про настройку публикации, а не про коллекцию.
+          */}
+          {collection.total_price !== null &&
+            (() => {
+              const note = pricesCaveat(plants.filter((plant) => plant.price === null).length)
+              return note ? <p className="headline-note">{note}</p> : null
+            })()}
         </div>
       </header>
 

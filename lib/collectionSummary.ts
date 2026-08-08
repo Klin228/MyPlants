@@ -26,6 +26,26 @@ export function collectionLines(plantCount: number): string[] {
   return [`${plantCount} ${plantCount === 1 ? 'plant' : 'plants'}`]
 }
 
+/**
+ * Оговорка к сумме: сколько растений без цены (тикет J5).
+ *
+ * Отдельно от `collectionLines`, и это не мелочь раскладки. Столбик шапки — имя,
+ * сумма, число растений — набран крупно, `12vw` при `line-height: 0.88`, и это
+ * голос продукта. Оговорка, попав туда, кричала громче самой суммы: проверено на
+ * отрисованной странице, «1 without a price» переносилось на две строки и
+ * занимало треть экрана. Сноска и должна выглядеть сноской.
+ *
+ * Нужна она при этом обязательно: рядом стоит сумма, и без оговорки та врёт
+ * умолчанием. Двадцать растений с ценой у трёх дают уверенное «$430», которое
+ * читается как стоимость коллекции, а не как стоимость трёх её растений.
+ *
+ * `null`, когда цены есть у всех: говорить нечего.
+ */
+export function pricesCaveat(withoutPrice: number): string | null {
+  if (withoutPrice <= 0) return null
+  return `${withoutPrice} ${withoutPrice === 1 ? 'plant has' : 'plants have'} no price yet`
+}
+
 /** Та же сводка одной строкой — для описания страницы и картинки превью. */
 export function describeCollection(plantCount: number): string {
   return collectionLines(plantCount).join(' · ')

@@ -201,7 +201,10 @@ export async function restoreFromPublication(input: string): Promise<Publication
       name: published.name.trim(),
       species: published.species?.trim() || undefined,
       photos: keys,
-      price: typeof published.price === 'number' ? published.price : 0,
+      // Раньше здесь стоял ноль — цена была обязательной, и деться было некуда.
+      // Теперь «не указана» выражается прямо (J5), и восстановленная коллекция
+      // больше не утверждает, что все растения достались даром.
+      price: typeof published.price === 'number' ? published.price : undefined,
       acquiredOn: published.acquiredOn || undefined,
       source: published.source?.trim() || undefined,
       notes: published.notes?.trim() || undefined,

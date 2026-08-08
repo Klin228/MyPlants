@@ -245,9 +245,14 @@ function validatePlant(raw: unknown): Plant | null {
 
   const id = typeof value.id === 'string' ? value.id.trim() : ''
   const name = typeof value.name === 'string' ? value.name.trim() : ''
-  const price = typeof value.price === 'number' && Number.isFinite(value.price) ? value.price : null
+  const price = typeof value.price === 'number' && Number.isFinite(value.price) ? value.price : undefined
 
-  if (!id || !name || price === null) {
+  /*
+   * Цена в проверку больше не входит (J5): растение без цены — законное
+   * растение, и отбрасывать его при восстановлении значило бы терять данные
+   * человека молча.
+   */
+  if (!id || !name) {
     console.warn('Запись в копии пропущена: нет id, названия или цены', raw)
     return null
   }

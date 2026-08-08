@@ -64,7 +64,7 @@ export function buildSnapshotDraft(
 
     if (plant.acquiredOn) draftPlant.acquiredOn = plant.acquiredOn
 
-    if (publishOptions.includePrices) draftPlant.price = plant.price
+    if (publishOptions.includePrices && plant.price !== undefined) draftPlant.price = plant.price
 
     if (publishOptions.includeSource) {
       const source = plant.source?.trim()
@@ -95,7 +95,9 @@ export function buildSnapshotDraft(
   // коллекции: иначе по опубликованной части и общей сумме можно было бы
   // вычислить стоимость скрытого.
   if (publishOptions.includePrices) {
-    draft.totalPrice = publishable.reduce((sum, plant) => sum + plant.price, 0)
+    // Складываются только известные цены: растение без цены не считается нулём,
+    // иначе сумма занижалась бы молча (J5)
+    draft.totalPrice = publishable.reduce((sum, plant) => sum + (plant.price ?? 0), 0)
   }
 
   return { draft, skipped }

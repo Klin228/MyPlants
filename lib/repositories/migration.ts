@@ -109,7 +109,8 @@ export async function migrateFromLocalStorage(): Promise<boolean> {
         id,
         name: plantData.name || '',
         photos: plantData.photos || (plantData.photoUrl ? [plantData.photoUrl] : []),
-        price: plantData.price || 0,
+        // Ноля больше нет: отсутствующая цена переносится как отсутствующая (J5)
+        price: typeof plantData.price === 'number' ? plantData.price : undefined,
         notes: plantData.notes,
         createdAt,
         updatedAt: plantData.updatedAt || createdAt

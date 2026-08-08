@@ -14,7 +14,7 @@ import { photosRepository, type PhotoSize } from '@/lib/repositories/photosRepos
 import { initializeDatabase } from '@/lib/repositories/migration'
 import { frameRatio } from '@/lib/photoRatio'
 import { speciesKey } from '@/lib/species'
-import { collectionLines } from '@/lib/collectionSummary'
+import { collectionLines, pricesCaveat } from '@/lib/collectionSummary'
 import { cameFromSharedCollection } from '@/lib/referral'
 import type { Plant } from '@/lib/models/plant'
 
@@ -213,6 +213,16 @@ export default function Home() {
       case 'name':
         return a.name.localeCompare(b.name)
       case 'price':
+        /*
+         * Растения без цены уходят в конец, а не считаются нулём (J5).
+         *
+         * Иначе при сортировке «дороже сверху» они смешивались бы с настоящими
+         * нулями — подарками и черенками, — и порядок переставал бы отвечать на
+         * вопрос, который ему задают.
+         */
+        if (a.price === undefined && b.price === undefined) return 0
+        if (a.price === undefined) return 1
+        if (b.price === undefined) return -1
         return b.price - a.price // High to low
       case 'date':
         // Даты в ISO с одним часовым поясом и фиксированной длиной, поэтому
@@ -231,8 +241,18 @@ export default function Home() {
    * главном числе продукта, читатель отнесёт деньги к двум растениям. Отклик
    * на поиск даёт отдельная строка под тулбаром.
    */
-  const totalPrice = loaded.reduce((sum, plant) => sum + plant.price, 0)
+  /*
+   * Сумма — только по известным ценам, и рядом считается, скольких цен нет (J5).
+   *
+   * Без второго числа сумма врёт умолчанием: коллекция из двадцати растений, где
+   * цена стоит у трёх, показывала бы уверенное «$430» — и человек читал бы это
+   * как стоимость коллекции, а не как стоимость трёх её растений.
+   */
+  const priced = loaded.filter((plant) => plant.price !== undefined)
+  const totalPrice = priced.reduce((sum, plant) => sum + (plant.price ?? 0), 0)
+  const withoutPrice = loaded.length - priced.length
   const summaryLines = collectionLines(loaded.length)
+  const priceNote = pricesCaveat(withoutPrice)
 
   /**
    * Закрыть список и вернуть фокус на кнопку.
@@ -333,6 +353,10 @@ export default function Home() {
                   {line}
                 </p>
               ))}
+
+              {/* Сноска к сумме, а не строка столбика: почему — в
+                  `lib/collectionSummary.ts` (J5) */}
+              {priceNote && <p className="headline-note">{priceNote}</p>}
             </>
           )}
         </div>
