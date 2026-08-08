@@ -22,6 +22,8 @@
 
 import type { Metadata } from 'next'
 import LandingBeacon from '@/components/LandingBeacon'
+import LandingCollage from '@/components/LandingCollage'
+import LandingParallax from '@/components/LandingParallax'
 
 /**
  * Ссылка на живую коллекцию — из окружения, а не из кода.
@@ -70,6 +72,7 @@ export default function LandingPage() {
   return (
     <main className="landing">
       <section className="landing-hero">
+        <div className="landing-hero-text">
         {/*
           Заголовок набран тем же плотным столбиком, что шапка приложения и
           витрина: `BRAND.md` называет этот приём голосом продукта, и новая
@@ -98,7 +101,17 @@ export default function LandingPage() {
               See an example collection
             </a>
           )}
+          </div>
         </div>
+
+        {/*
+          Коллаж — второй столбик первого экрана на широком, и продолжение
+          заголовка на телефоне. Он показывает продукт вместо того, чтобы
+          описывать его: у обоих ближайших конкурентов первый экран устроен так
+          же, и это не подражание, а то, что человек хочет увидеть до текста.
+        */}
+        <LandingCollage />
+        <LandingParallax />
       </section>
 
       <section className="landing-blocks">

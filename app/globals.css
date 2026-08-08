@@ -187,6 +187,13 @@
    */
   --outline-image: rgba(0, 0, 0, 0.1);
 
+  /*
+   * Силуэт листа для декораций лендинга. Встроенным `data:`, а не файлом: это
+   * двадцать байт формы, и отдельный запрос за ними — лишняя сетевая поездка на
+   * странице, которую мы держим лёгкой.
+   */
+  --leaf-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2c5 0 9 4 9 9 0 6-4 11-9 11S3 17 3 11c0-5 4-9 9-9Z'/%3E%3C/svg%3E");
+
   --shadow-xs: 0 0 4px 0 rgba(0, 0, 0, 0.04);
   --shadow-sm: 0 18px 47px 0 rgba(0, 0, 0, 0.03), 0 7.5px 19px 0 rgba(0, 0, 0, 0.02),
     0 4px 10.5px 0 rgba(0, 0, 0, 0.02), 0 2.3px 5.8px 0 rgba(0, 0, 0, 0.01),
@@ -2461,21 +2468,73 @@ body {
 /*
  * Единственная индексируемая страница продукта (тикет J4).
  *
- * Своя раскладка, а не `.page`: у главной сверху плотная шапка и плавающая
- * кнопка, а здесь читают текст сверху вниз. Ширина ограничена по мере
- * читаемости, а не по ширине экрана — строка в 90 знаков на ноутбуке
- * прочитывается хуже, чем на телефоне.
+ * Первая версия выглядела технической страницей — владелец сказал это прямо.
+ * Разбор двух ближайших конкурентов показал, чего не хватало: у Leafolio и у
+ * collecto.rs первый экран устроен одинаково — крупный заголовок слева, **сам
+ * продукт справа**. Не описание, а изображение того, что получится.
+ *
+ * Отсюда нынешняя раскладка: широкий экран делится на текст и коллаж, узкий
+ * ставит коллаж под заголовок. Ширина текста ограничена по мере читаемости, а
+ * коллаж свободен — он и есть картинка.
  */
 .landing {
-  max-width: 40rem;
-  margin: 0 auto;
   padding: max(var(--space-3xl), var(--safe-top)) max(var(--space-lg), var(--safe-right))
     max(var(--space-3xl), var(--safe-bottom)) max(var(--space-lg), var(--safe-left));
   background-color: var(--color-bg);
+  overflow-x: clip;
 }
 
+/*
+ * Сиреневая подсветка за первым экраном.
+ *
+ * Радиальный градиент, а не заливка блока: у заливки видна граница, и первый
+ * экран отрезался бы от остальной страницы полосой. Тот же приём, что у
+ * collecto.rs, и по той же причине — коллажу нужна подложка, чтобы карточки не
+ * висели в пустоте.
+ */
 .landing-hero {
-  margin-bottom: var(--space-3xl);
+  position: relative;
+  max-width: 68rem;
+  margin: 0 auto var(--space-3xl);
+  display: grid;
+  gap: var(--space-2xl);
+}
+
+.landing-hero::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  top: -30%;
+  left: 50%;
+  width: min(130vw, 76rem);
+  height: 170%;
+  transform: translateX(-50%);
+  /*
+   * Ромб затухания должен закончиться **внутри** бокса, иначе на его краю
+   * видна прямая линия — так и было в первой версии: подсветка обрывалась
+   * горизонтальной кромкой поперёк страницы. Отсюда запас по высоте и центр
+   * ближе к середине.
+   */
+  background: radial-gradient(
+    38% 28% at 66% 46%,
+    color-mix(in srgb, var(--color-surface) 80%, transparent),
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.landing-hero-text {
+  position: relative;
+  z-index: 1;
+  max-width: 34rem;
+}
+
+@media (min-width: 900px) {
+  .landing-hero {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-3xl);
+  }
 }
 
 /*
@@ -2490,15 +2549,17 @@ body {
 .landing-title {
   margin: 0 0 var(--space-lg) 0;
   font-family: var(--font-display);
-  font-size: clamp(2rem, 8vw, 3.25rem);
+  font-size: clamp(2.25rem, 7vw, 3.75rem);
   font-weight: 900;
   line-height: 0.95;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   color: var(--color-text);
+  text-wrap: balance;
 }
 
 .landing-lead {
   margin: 0 0 var(--space-2xl) 0;
+  max-width: 30rem;
   font-size: var(--text-lg);
   line-height: 1.5;
   color: var(--color-text-muted);
@@ -2532,9 +2593,8 @@ body {
   /*
    * `0 0 auto`, а не `1`. У `.btn--primary` стоит `flex: 1` — он нужен в ряду
    * кнопок формы, — и в колонке эта же строчка растит кнопку на всю свободную
-   * **высоту**: зелёный прямоугольник в треть экрана. Ровно та же ловушка, что
-   * поймалась на пустом экране в J3; в ряду ширину делит правило в медиазапросе
-   * ниже.
+   * высоту, если у контейнера есть лишняя высота. Ловушка та же, что поймалась
+   * на пустом экране в J3.
    */
   flex: 0 0 auto;
   justify-content: center;
@@ -2543,11 +2603,189 @@ body {
   text-decoration: none;
 }
 
-.landing-blocks {
+/* ---------- Коллаж на первом экране ---------- */
+
+/*
+ * Кладка из пяти карточек: две колонки, разная высота, лёгкий наклон.
+ *
+ * Пропорции 3:4, 1:1 и 4:3 — те же, между которыми зажата рамка фотографии в
+ * приложении (X5). Это не совпадение и не украшение: рваная кладка из кадров
+ * разной формы и есть узнаваемая форма продукта, `BRAND.md` прямо запрещает
+ * ретушировать её в ровную сетку.
+ */
+.collage {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-lg);
+  align-items: start;
+  /* Предел ширины: без него на широком экране карточки вырастают до размера
+     плаката и перестают читаться как коллекция */
+  max-width: 30rem;
+  margin-inline: auto;
+}
+
+.collage-card {
+  margin: 0;
+  /* Наклон у каждой карточки свой — задаётся ниже. Здесь ноль, чтобы значение
+     существовало и при выключенной анимации. */
+  --tilt: 0deg;
+  --drift: 0px;
+  rotate: var(--tilt);
+}
+
+/* Вторая колонка опущена: без сдвига две колонки читаются как таблица */
+.collage-card--b {
+  margin-top: var(--space-2xl);
+}
+
+.collage-card--a { --tilt: -1.5deg; --drift: 26px; }
+.collage-card--b { --tilt: 2deg; --drift: -34px; }
+.collage-card--c { --tilt: 1deg; --drift: 18px; }
+.collage-card--d { --tilt: -2deg; --drift: -22px; }
+
+/*
+ * Кадр: скругление, тень и обводка — ровно те же токены, что у настоящих
+ * карточек в приложении. Если сюда положат фотографию вместо рисунка, менять
+ * не придётся ничего.
+ */
+.collage-photo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--color-primary) 14%, var(--color-surface)),
+    var(--color-surface)
+  );
+  box-shadow: var(--shadow-lg);
+  outline: 1px solid var(--outline-image);
+  outline-offset: -1px;
+}
+
+.collage-photo--tall { aspect-ratio: 3 / 4; }
+.collage-photo--square { aspect-ratio: 1 / 1; }
+.collage-photo--wide { aspect-ratio: 4 / 3; }
+
+/*
+ * Рисунок занимает кадр целиком и обрезается им.
+ *
+ * Раньше он стоял по центру на 62% ширины — и читался как значок на пустом
+ * прямоугольнике. `slice` в `preserveAspectRatio` у самих рисунков плюс полный
+ * размер здесь дают то, ради чего всё затевалось: силуэт упирается в края, как
+ * растение упирается в края фотографии.
+ */
+.collage-art {
+  width: 100%;
+  height: 100%;
+}
+
+.collage-art-leaf {
+  fill: color-mix(in srgb, var(--color-primary) 72%, transparent);
+}
+
+/* Прожилки — светлые линии поверх листа */
+.collage-art-vein {
+  fill: none;
+  stroke: color-mix(in srgb, var(--color-surface) 55%, transparent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* Стебель темнее листа: он за ним и в тени */
+.collage-art-stem {
+  fill: none;
+  stroke: color-mix(in srgb, var(--color-primary) 85%, black);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+/* Горшок — второй, тёплый цвет: без него кадр одноцветный и плоский */
+.collage-art-pot {
+  fill: color-mix(in srgb, var(--color-accent) 55%, var(--color-surface));
+}
+
+/* Подпись повторяет карточку приложения: название и цена, ничего больше */
+.collage-caption {
   display: flex;
   flex-direction: column;
+  gap: 2px;
+  padding: var(--space-sm) var(--space-xs) 0;
+}
+
+.collage-name {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--color-text);
+}
+
+.collage-price {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/*
+ * Параллакс живёт в `components/LandingParallax.tsx`, а не здесь.
+ *
+ * Здесь стояло расписание прокрутки (`animation-timeline`) — ни строчки
+ * скрипта, счёт на стороне браузера. Проверить его в этой сборке не удалось:
+ * прогресс либо замирал на краю диапазона, либо расписание оказывалось
+ * неактивным и сдвиг не применялся вовсе. Механизм, который нельзя проверить,
+ * в продукт не идёт — разбор в шапке того компонента.
+ *
+ * Отсюда правило: `--drift` у карточек ниже — не декорация, его читает скрипт.
+ * Меняя величины, меняешь размах движения.
+ */
+
+/* ---------- Блоки лендинга ---------- */
+
+.landing-blocks {
+  max-width: 60rem;
+  margin: 0 auto var(--space-3xl);
+  display: grid;
   gap: var(--space-2xl);
-  margin-bottom: var(--space-3xl);
+}
+
+@media (min-width: 760px) {
+  .landing-blocks {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-xl);
+  }
+}
+
+/*
+ * Блок — карточка на поверхности, а не абзац на фоне.
+ *
+ * Три абзаца подряд на общем фоне и читались как техническая страница: у текста
+ * не было формы. Поверхность, скругление и тень дают ту же форму, что у карточек
+ * коллекции, — страница выглядит частью продукта.
+ */
+.landing-block {
+  padding: var(--space-xl);
+  border-radius: var(--radius-xl);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-md);
+}
+
+/*
+ * Листок в углу блока — единственное украшение, и оно из того же набора форм,
+ * что рисунки в коллаже. Задан фоном, а не разметкой: это декорация, и в
+ * разметке ей делать нечего.
+ */
+.landing-block::before {
+  content: '';
+  display: block;
+  width: 28px;
+  height: 28px;
+  margin-bottom: var(--space-md);
+  background-color: color-mix(in srgb, var(--color-primary) 55%, transparent);
+  -webkit-mask: var(--leaf-mask) center / contain no-repeat;
+  mask: var(--leaf-mask) center / contain no-repeat;
 }
 
 .landing-block-title {
@@ -2567,18 +2805,32 @@ body {
 }
 
 /*
- * Блок про ограничения отделён поверхностью, а не только отступом: он говорит
- * обратное всему, что выше, и должен читаться как отдельный разговор, а не как
- * четвёртое преимущество.
+ * Блок про ограничения — тёмная поверхность, а не ещё одна светлая карточка.
+ *
+ * Он говорит обратное всему, что выше, и должен читаться как отдельный
+ * разговор, а не как четвёртое преимущество. Инверсия делает это без слов.
  */
 .landing-limits {
-  margin-bottom: var(--space-2xl);
-  padding: var(--space-xl);
+  max-width: 60rem;
+  margin: 0 auto var(--space-2xl);
+  padding: var(--space-2xl);
   border-radius: var(--radius-xl);
-  background-color: var(--color-surface-muted);
+  background-color: var(--color-text);
+  box-shadow: var(--shadow-lg);
+}
+
+.landing-limits .landing-block-title,
+.landing-limits .landing-block-text {
+  color: var(--color-bg);
+}
+
+.landing-limits .landing-block-text {
+  max-width: 46rem;
 }
 
 .landing-foot {
+  max-width: 60rem;
+  margin: 0 auto;
   font-size: var(--text-sm);
 }
 
