@@ -1086,9 +1086,13 @@ body {
  */
 .empty-state-button {
   flex: 0 0 auto;
-  align-self: flex-start;
+  /* Во всю ширину контейнера — решение владельца. На первом экране это
+     единственное действие, и жаться к левому краю ему незачем. */
+  align-self: stretch;
+  justify-content: center;
   margin-top: var(--space-lg);
   gap: var(--space-sm);
+  border-radius: var(--radius-lg);
 }
 
 /*
@@ -2264,7 +2268,8 @@ body {
   margin-left: calc(-1 * max(var(--space-lg), var(--safe-left)));
   padding: var(--space-md) max(var(--space-lg), var(--safe-right))
     max(var(--space-md), var(--safe-bottom)) max(var(--space-lg), var(--safe-left));
-  border-top: 1px solid var(--color-border-soft);
+  /* Линии сверху нет по решению владельца: полосу и так видно по кнопке, а
+     черта делала из неё панель — лишняя рамка вокруг единственного действия. */
   background-color: var(--color-bg);
 }
 
@@ -2281,6 +2286,9 @@ body {
    * по-прежнему соблюдён.
    */
   padding: var(--space-md) var(--space-lg);
+  /* Скругление как у кнопки добавления растения: у главного действия продукта
+     одна форма на всех экранах, `--radius-md` из `.btn--primary` выбивался. */
+  border-radius: var(--radius-lg);
   font-size: var(--text-md);
   text-align: center;
   text-decoration: none;
