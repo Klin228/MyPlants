@@ -213,7 +213,7 @@ function Poster({ title, summary, totalPrice, covers }: PosterData) {
           color: COLORS.faint,
         }}
       >
-        MyPlants
+        Plantorium
       </div>
     </div>
   )
@@ -297,7 +297,7 @@ function Placeholder() {
         backgroundColor: COLORS.backdrop,
       }}
     >
-      <div style={{ display: 'flex', fontSize: 56, color: COLORS.surface }}>MyPlants</div>
+      <div style={{ display: 'flex', fontSize: 56, color: COLORS.surface }}>Plantorium</div>
       <div style={{ display: 'flex', fontSize: 30, color: COLORS.faint, marginTop: 20 }}>
         This collection is no longer available
       </div>

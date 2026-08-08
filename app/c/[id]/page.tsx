@@ -265,7 +265,7 @@ function Missing() {
         published collection stays available until its owner removes it.
       </p>
       <p className="notice-action">
-        <a href="/">Build your own collection with MyPlants</a>
+        <a href="/">Make one like this — no account, free</a>
       </p>
     </main>
   )

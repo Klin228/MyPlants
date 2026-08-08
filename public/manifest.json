@@ -1,6 +1,6 @@
 {
-  "name": "MyPlants",
-  "short_name": "MyPlants",
+  "name": "Plantorium",
+  "short_name": "Plantorium",
   "description": "Personal plant collection manager",
   "start_url": "/",
   "display": "standalone",

@@ -29,6 +29,13 @@ const PHOTOS_DIR = 'photos/'
  * Метка формата. Проверяется при восстановлении, чтобы на попытку загрузить
  * чужой архив ответить понятным сообщением, а не разбором мусора.
  */
+/*
+ * Метка формата внутри архива. **Переименованию не подлежит** (тикет J1):
+ * продукт стал `Plantorium`, но она лежит в уже сохранённых у людей файлах, и
+ * восстановление сверяется именно с ней. Сменить её значит объявить все старые
+ * резервные копии чужими. Имя скачиваемого файла при этом новое — оно ни на
+ * что не влияет, проверяется содержимое.
+ */
 const FORMAT = 'myplants-backup'
 
 /** Версия описания. Пригодится, когда модель растения изменится. */
@@ -117,7 +124,7 @@ export async function createBackup(now: Date): Promise<BackupResult> {
     // и передавать его в Blob как есть — значит зависеть от того, что буфер
     // больше никто не тронет.
     blob: new Blob([zip.slice()], { type: 'application/zip' }),
-    filename: `myplants-backup-${now.toISOString().slice(0, 10)}.zip`,
+    filename: `plantorium-backup-${now.toISOString().slice(0, 10)}.zip`,
     plants: exported.length,
     photos: photoCount,
     missingPhotos,
@@ -152,7 +159,7 @@ export async function restoreBackup(file: Blob): Promise<RestoreResult> {
 
   const manifestEntry = entries.find((entry) => entry.name === MANIFEST)
   if (!manifestEntry) {
-    throw new Error('This zip is not a MyPlants backup: collection.json is missing')
+    throw new Error('This zip is not a Plantorium backup: collection.json is missing')
   }
 
   let manifest: Manifest
@@ -163,7 +170,7 @@ export async function restoreBackup(file: Blob): Promise<RestoreResult> {
   }
 
   if (manifest.format !== FORMAT) {
-    throw new Error('This zip is not a MyPlants backup')
+    throw new Error('This zip is not a Plantorium backup')
   }
   if (typeof manifest.version !== 'number' || manifest.version > VERSION) {
     throw new Error('This backup was made by a newer version of the app')

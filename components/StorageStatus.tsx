@@ -431,7 +431,7 @@ export default function StorageStatus({ onRestored }: StorageStatusProps) {
       {showHint && (
         <div className="storage-hint">
           <div className="storage-hint-body">
-            <p className="storage-hint-title">Add MyPlants to your home screen</p>
+            <p className="storage-hint-title">Add Plantorium to your home screen</p>
             <p className="storage-hint-text">
               {state.platform === 'ios'
                 ? 'Not for convenience: Safari erases a website’s data after seven days of not visiting it, and an app on the home screen is exempt. Tap the Share button, then “Add to Home Screen”.'

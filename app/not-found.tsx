@@ -16,7 +16,7 @@ export default function NotFound() {
         it was copied whole.
       </p>
       <p className="notice-action">
-        <a href="/">Go to MyPlants</a>
+        <a href="/">Go to Plantorium</a>
       </p>
     </main>
   )

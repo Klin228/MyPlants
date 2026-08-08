@@ -78,13 +78,13 @@ export const metadata: Metadata = {
   metadataBase: siteUrl(),
   // Название совпадает с шапкой приложения и манифестом: вкладка не должна
   // называть продукт иначе, чем он называет себя сам.
-  title: 'MyPlants',
+  title: 'Plantorium',
   description: 'Personal plant collection manager',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'MyPlants',
+    title: 'Plantorium',
   },
   other: {
     'mobile-web-app-capable': 'yes',

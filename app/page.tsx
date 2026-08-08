@@ -324,7 +324,7 @@ export default function Home() {
       */}
       <div className="page-head">
         <div className="headline">
-          <h1 className="headline-line">MyPlants</h1>
+          <h1 className="headline-line">Plantorium</h1>
           {hasPlants && (
             <>
               <p className="headline-line">${totalPrice.toFixed(2)}</p>
