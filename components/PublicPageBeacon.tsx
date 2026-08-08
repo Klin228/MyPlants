@@ -22,16 +22,19 @@
 
 import { useEffect } from 'react'
 import { track } from '@/lib/analytics'
+import { REFERRAL_KEY } from '@/lib/referral'
 
-/**
+/*
  * Отметка «пришёл по чужой ссылке», которую читает главный экран.
  *
  * `sessionStorage`, а не адрес страницы: не хочется вешать метку на ссылку,
  * которую человек может куда-то скопировать. И не `document.referrer` — он
  * пропадает при переходе через промежуточные страницы, а нам нужен факт «этот
  * человек пришёл из чужой коллекции», живущий до конца сессии.
+ *
+ * Сам ключ переехал в `lib/referral.ts` (J3): его теперь читает не только
+ * аналитика, но и пустой экран.
  */
-const REFERRAL_KEY = 'myplants-from-referral'
 
 export default function PublicPageBeacon() {
   useEffect(() => {
@@ -39,14 +42,30 @@ export default function PublicPageBeacon() {
   }, [])
 
   return (
+    /*
+     * Кнопка, а не строчка внизу страницы (тикет J3).
+     *
+     * Была серая надпись 11-м кеглем цветом `--color-text-subtle` в самом низу,
+     * под всей коллекцией. Владелец назвал проблему точно: до неё не долистают
+     * или просто не увидят. А это единственный переход от «посмотрел чужую» к
+     * «делаю свою» — то есть весь механизм роста держался на самом незаметном
+     * элементе страницы.
+     *
+     * Текст из `BRAND.md`: прежний «Made with MyPlants — build your own
+     * collection» не говорил, что произойдёт по нажатию, и не снимал главный
+     * страх — регистрацию. Новый говорит оба раза: что получится и что за это
+     * ничего не просят. Имени продукта в нём нет намеренно — переименование по
+     * J1 эту строку не заденет.
+     */
     <a
       href="/"
+      className="btn btn--primary showcase-cta-button"
       onClick={() => {
         track({ name: 'public_page_cta_clicked' })
         sessionStorage.setItem(REFERRAL_KEY, '1')
       }}
     >
-      Made with MyPlants — build your own collection
+      Make one like this — no account, free
     </a>
   )
 }

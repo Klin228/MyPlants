@@ -15,6 +15,7 @@ import { initializeDatabase } from '@/lib/repositories/migration'
 import { frameRatio } from '@/lib/photoRatio'
 import { speciesKey } from '@/lib/species'
 import { collectionLines } from '@/lib/collectionSummary'
+import { cameFromSharedCollection } from '@/lib/referral'
 import type { Plant } from '@/lib/models/plant'
 
 /**
@@ -33,6 +34,13 @@ type SortBy = 'name' | 'price' | 'date'
 
 export default function Home() {
   const router = useRouter()
+  /*
+   * Пришёл ли человек с чужой коллекции — от этого зависит текст пустого экрана
+   * (J3). Читается в эффекте, а не при первой отрисовке: `sessionStorage` на
+   * сервере нет, и чтение прямо в теле компонента дало бы разную разметку на
+   * сервере и в браузере.
+   */
+  const [cameFromShared, setCameFromShared] = useState(false)
   /**
    * Три состояния, а не два. `null` — «ещё не читали».
    *
@@ -118,6 +126,9 @@ export default function Home() {
 
   // Initialize database and load plants on mount and when page becomes visible
   useEffect(() => {
+    // Метку читаем здесь же: она нужна к тому кадру, на котором появится пустой
+    // экран, а он показывается только после чтения из базы (J3).
+    setCameFromShared(cameFromSharedCollection())
     loadPlants()
 
     // Reload plants when the tab comes back to the foreground.
@@ -342,9 +353,55 @@ export default function Home() {
         // живой коллекции оно мигнёт и исчезнет.
         null
       ) : !hasPlants ? (
+        /*
+          Пустой экран говорит разное двум разным людям (тикет J3).
+
+          Раньше он говорил одно: «Your collection is empty. Tap the button
+          below to add your first plant!» И это самая дорогая дыра продукта:
+          человек, пришедший с чужой коллекции в момент максимального интереса,
+          попадал на сообщение о пустоте, где нет ни одного тезиса продукта — ни
+          что это каталог, а не приложение про полив, ни что аккаунт не нужен,
+          ни что это бесплатно.
+
+          Метка о том, что он пришёл по ссылке, лежала в браузере с самого
+          начала: её ставит `PublicPageBeacon`, а читала до сих пор только
+          аналитика. Тексты — из `BRAND.md`.
+
+          Ветка «метки нет» остаётся рабочей сама по себе: `cameFromShared`
+          начинается с `false`, и человек, пришедший сам, видит свой текст с
+          первого кадра — а не текст про «коллекцию, которую вы только что
+          смотрели», мигающий до чтения хранилища.
+        */
         <div className="empty-state">
-          <p className="empty-state-title">Your collection is empty</p>
-          <p className="empty-state-hint">Tap the button below to add your first plant!</p>
+          {cameFromShared ? (
+            <>
+              <p className="empty-state-title">Your collection, like the one you just looked at</p>
+              <p className="empty-state-hint">
+                Add a photo, a name, what you paid. That&rsquo;s a plant. When you have a few,
+                publish the collection as a link — prices stay off unless you turn them on.
+              </p>
+              <p className="empty-state-hint">Nothing to sign up for. It all stays in this browser.</p>
+            </>
+          ) : (
+            <>
+              <p className="empty-state-title">Nothing here yet</p>
+              <p className="empty-state-hint">
+                A catalogue of what you own: photo, species, what you paid, where it came from.
+                Not watering reminders.
+              </p>
+            </>
+          )}
+
+          {/*
+            Кнопка прямо здесь, а не отсылка к плавающей внизу. Прежний текст
+            «Tap the button below» требовал сначала найти глазами то, о чём он
+            говорит; на пустом экране это лишний шаг ровно там, где человек ещё
+            ничего не вложил и уходит легче всего.
+          */}
+          <button onClick={handleOpenAddForm} className="btn btn--primary empty-state-button">
+            <Plus size={20} />
+            Add your first plant
+          </button>
         </div>
       ) : (
         <>
@@ -483,12 +540,19 @@ export default function Home() {
         Слой сквозной для касаний, кнопка — нет. Прежняя прозрачная панель во
         всю ширину окна перехватывала тапы по карточкам, проезжающим под ней.
       */}
-      <div className="fab-layer">
-        <button onClick={handleOpenAddForm} className="btn btn--add" aria-label="Add plant">
-          <Plus size={22} />
-          Add plant
-        </button>
-      </div>
+      {/*
+        На пустом экране плавающей кнопки нет: там своя, в потоке (J3). Две
+        кнопки с одним действием на одном экране — лишний выбор ровно там, где
+        человек ещё ничего не вложил.
+      */}
+      {(plants === null || hasPlants) && (
+        <div className="fab-layer">
+          <button onClick={handleOpenAddForm} className="btn btn--add" aria-label="Add plant">
+            <Plus size={22} />
+            Add plant
+          </button>
+        </div>
+      )}
 
       {isShareOpen && <ShareDialog plants={loaded} onClose={() => setIsShareOpen(false)} />}
 

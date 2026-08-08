@@ -9,6 +9,7 @@ import { plantsRepository } from '@/lib/repositories/plantsRepository'
 import { initializeDatabase } from '@/lib/repositories/migration'
 import { requestPersistentStorage } from '@/lib/environment'
 import { track } from '@/lib/analytics'
+import { REFERRAL_KEY } from '@/lib/referral'
 import type { NewPlant, Plant } from '@/lib/models/plant'
 
 /**
@@ -76,9 +77,9 @@ export default function NewPlantPage() {
       if (plants.length === 0) {
         track({ name: 'first_plant_added' })
         // Пришёл по чужой ссылке и завёл своё — числитель главной метрики
-        if (sessionStorage.getItem('myplants-from-referral') === '1') {
+        if (sessionStorage.getItem(REFERRAL_KEY) === '1') {
           track({ name: 'collection_from_referral' })
-          sessionStorage.removeItem('myplants-from-referral')
+          sessionStorage.removeItem(REFERRAL_KEY)
         }
       }
 

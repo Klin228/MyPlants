@@ -1026,26 +1026,69 @@ body {
  * пустой коллекции состоит из одного заголовка, её высота известна и без
  * расчёта, а от точности здесь ничего не зависит.
  */
+/*
+ * Текст выключен влево, а не по центру (тикет J3).
+ *
+ * По центру стояла одна строчка про пустоту — там это было уместно. Теперь тут
+ * три абзаца и кнопка: центрированный многострочный текст рвёт левый край, с
+ * которого глаз начинает каждую строку.
+ *
+ * `min-height` в `dvh`, а `vh` запасным — та же правка, что в H1: на телефоне
+ * `vh` считается по самому большому вьюпорту, и экран получался выше видимого.
+ */
 .empty-state {
   display: flex;
   flex-direction: column;
   justify-content: center;
   min-height: 55vh;
-  text-align: center;
+  min-height: 55dvh;
   padding: var(--space-3xl) var(--space-lg);
   color: var(--color-text-muted);
 }
 
+/*
+ * Заголовок пустого экрана набран дисплейной гарнитурой (тикет J3).
+ *
+ * Это первый экран продукта для пришедшего по чужой ссылке, и он должен
+ * выглядеть как продукт, а не как сообщение об ошибке. Тем же приёмом набраны
+ * шапка главной и витрина — плотный столбик из G2, `BRAND.md` называет его
+ * голосом продукта.
+ *
+ * `max-width` в символах: строка «Add a photo, a name, what you paid» на
+ * планшете иначе растягивается на всю ширину и читается хуже, чем на телефоне.
+ */
 .empty-state-title {
-  margin-bottom: var(--space-sm);
-  font-size: var(--text-lg);
-  font-weight: 500;
+  margin-bottom: var(--space-md);
+  max-width: 18ch;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
 }
 
 .empty-state-hint {
-  margin: 0;
+  margin: 0 0 var(--space-md) 0;
+  max-width: 42ch;
   font-size: var(--text-md);
+  line-height: 1.5;
   color: var(--color-text-subtle);
+}
+
+/*
+ * `flex: 0 0 auto` обязателен, и это не перестраховка.
+ *
+ * У `.btn--primary` стоит `flex: 1` — он нужен в ряду кнопок формы, где две
+ * кнопки делят ширину поровну. Здесь родитель это колонка, и та же строчка
+ * растянула кнопку на всю оставшуюся **высоту**: зелёный прямоугольник в
+ * пол-экрана. Видно только на отрисованном экране, из кода не заметно.
+ */
+.empty-state-button {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  margin-top: var(--space-lg);
+  gap: var(--space-sm);
 }
 
 /*
@@ -2199,20 +2242,48 @@ body {
   color: var(--color-text-muted);
 }
 
-.showcase-footer {
+/*
+ * Полоса с приглашением сделать свою коллекцию (тикет J3).
+ *
+ * `sticky` с прижатием к низу: пока коллекция прокручивается, полоса стоит у
+ * нижнего края экрана, а в конце страницы садится на своё место. У длинной
+ * коллекции кнопка поэтому видна всегда, а у короткой не закрывает собой
+ * карточки — чего не умеет `fixed`.
+ *
+ * Заливка обязательна: под полосой проезжают фотографии, и прозрачная кнопка на
+ * них читалась бы через раз. Нижний инсет — из X1, полоса стоит у самого края.
+ */
+.showcase-cta {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
   margin-top: var(--space-3xl);
+  /* Компенсирует боковые поля страницы: полоса должна доходить до краёв экрана,
+     иначе под ней в просветах видно проезжающие карточки. */
+  margin-right: calc(-1 * max(var(--space-lg), var(--safe-right)));
+  margin-left: calc(-1 * max(var(--space-lg), var(--safe-left)));
+  padding: var(--space-md) max(var(--space-lg), var(--safe-right))
+    max(var(--space-md), var(--safe-bottom)) max(var(--space-lg), var(--safe-left));
+  border-top: 1px solid var(--color-border-soft);
+  background-color: var(--color-bg);
+}
+
+.showcase-cta-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 480px;
+  margin: 0 auto;
+  /*
+   * Кнопка ниже, чем у `.btn--primary` в форме: полоса стоит на экране
+   * постоянно, и с исходными отступами она съедала 105 пикселей из 733 — седьмую
+   * часть чужой коллекции. Замерено; с этими значениями 76, и `--tap-target`
+   * по-прежнему соблюдён.
+   */
+  padding: var(--space-md) var(--space-lg);
+  font-size: var(--text-md);
   text-align: center;
-  font-size: var(--text-xs);
-}
-
-.showcase-footer a {
-  color: var(--color-text-subtle);
   text-decoration: none;
-}
-
-.showcase-footer a:hover {
-  color: var(--color-accent);
-  text-decoration: underline;
 }
 
 /* ---------- Отзыв публикации ---------- */
