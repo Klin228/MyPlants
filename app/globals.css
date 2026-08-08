@@ -2230,9 +2230,27 @@ body {
  * Здесь первая строка это название коллекции, которое ввёл человек, и предел у
  * него 120 знаков: на 12vw такое название превратилось бы в стену.
  */
+/*
+ * Столбик на витрине теперь того же кегля, что на главной.
+ *
+ * Раньше **весь** столбик был мельче — из-за одной строки: название коллекции
+ * вводит человек, и предел у него 120 знаков, на 12vw такое превратилось бы в
+ * стену. Но под это правило заодно попадали сумма и число растений, которым
+ * ничего не угрожает, и два экрана переставали быть похожими.
+ *
+ * Теперь мельчает только само название, и ровно настолько, насколько оно
+ * длинное: класс выбирает сервер, длина строки ему известна.
+ */
 .showcase .headline-line {
-  font-size: clamp(1.75rem, 8vw, 3rem);
   overflow-wrap: anywhere;
+}
+
+.headline-line--mid {
+  font-size: clamp(1.75rem, 8vw, 3rem);
+}
+
+.headline-line--small {
+  font-size: clamp(1.5rem, 6vw, 2.25rem);
 }
 
 /*
@@ -2275,6 +2293,9 @@ body {
  * заметки. У гостя нет экрана растения, куда это можно было бы увести.
  */
 .showcase-card {
+  /* Точка отсчёта для счётчика фотографий: он лежит внутри прокручиваемой
+     ленты, но привязан к карточке — иначе уезжал бы вместе с кадрами. */
+  position: relative;
   display: flex;
   flex-direction: column;
   background-color: transparent;
@@ -2293,8 +2314,18 @@ body {
   display: flex;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
-  /* Вертикаль отдаём странице, горизонталь — ленте */
-  touch-action: pan-y pinch-zoom;
+  /*
+   * Здесь `pan-x` обязателен, и его отсутствие было настоящей ошибкой.
+   *
+   * Стояло `pan-y pinch-zoom` с комментарием «горизонталь отдаём ленте» — но
+   * `touch-action` перечисляет то, что делает **браузер**, а не то, что делаем
+   * мы. `pan-y` означает «горизонтальные жесты браузер не обрабатывает», и в
+   * приложении это верно: там горизонталь ловит наш собственный код свайпа. На
+   * витрине кода нет вовсе — лента прокручивается силами браузера, — и запрет
+   * просто отключал листание. Владелец нашёл на живой странице: фотографии не
+   * листались.
+   */
+  touch-action: pan-x pan-y pinch-zoom;
   scrollbar-width: none;
   /* Скругление переехало сюда с карточки (G7): подложки у неё больше нет, и
      скруглять надо саму фотографию. */
@@ -2351,11 +2382,20 @@ body {
   padding: var(--space-sm) 0 0 0;
 }
 
+/*
+ * Название и цена набраны ровно так же, как в карточке приложения.
+ *
+ * Было крупнее и жирнее — владелец заметил, положив два экрана рядом. Это не
+ * вкусовщина: тикет G7 отдал витрине шапку приложения именно ради того, чтобы
+ * владелец видел свою коллекцию так же, как её увидит гость. Подписи из этого
+ * правила выпадали.
+ */
 .showcase-name {
   margin: 0;
   font-family: var(--font-display);
-  font-size: var(--text-lg);
-  font-weight: bold;
+  font-size: var(--text-md);
+  font-weight: 900;
+  line-height: 1.15;
   color: var(--color-text);
   overflow-wrap: anywhere;
 }
@@ -2369,10 +2409,9 @@ body {
 }
 
 .showcase-price {
-  margin: var(--space-md) 0 0 0;
-  font-size: var(--text-lg);
-  font-weight: bold;
-  color: var(--color-text);
+  margin: var(--space-xs) 0 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
 }
 
 .showcase-meta {
@@ -2867,6 +2906,114 @@ body {
 
 .landing-foot a {
   color: var(--color-text-subtle);
+}
+
+/* ---------- Полноэкранный просмотр на витрине ---------- */
+
+/*
+ * Показывается по `:target` — то есть когда адрес страницы указывает на этот
+ * блок. Ни строчки скрипта: кадр в ленте это ссылка на якорь.
+ *
+ * `display: none` до открытия важен не только для вида: скрытая таким образом
+ * картинка с `loading="lazy"` не грузится, пока её не показали. Иначе коллекция
+ * из сорока растений тянула бы второй комплект полноразмерных снимков сразу.
+ */
+.lightbox {
+  display: none;
+}
+
+.lightbox:target {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-lg);
+  padding: max(var(--space-lg), var(--safe-top)) max(var(--space-lg), var(--safe-right))
+    max(var(--space-lg), var(--safe-bottom)) max(var(--space-lg), var(--safe-left));
+  /* Почти чёрный, а не полупрозрачный: под фотографией не должно просвечивать
+     ничего — иначе светлый снимок читается хуже, чем в ленте. */
+  background-color: rgba(0, 0, 0, 0.94);
+}
+
+/* Нажатие мимо картинки закрывает. Лежит под ней по порядку в разметке. */
+.lightbox-dismiss {
+  position: absolute;
+  inset: 0;
+}
+
+.lightbox-image {
+  position: relative;
+  max-width: 100%;
+  /* Место под панель снизу; `dvh`, потому что панель браузера на телефоне
+     съедает высоту — та же причина, что в H1. */
+  max-height: 78vh;
+  max-height: 78dvh;
+  object-fit: contain;
+}
+
+.lightbox-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  color: #fff;
+  font-size: var(--text-sm);
+}
+
+.lightbox-step,
+.lightbox-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap-target);
+  min-height: var(--tap-target);
+  color: #fff;
+  text-decoration: none;
+}
+
+.lightbox-step {
+  font-size: var(--text-2xl);
+  line-height: 1;
+}
+
+/* Край ленты: стрелка на месте, чтобы панель не прыгала, но неактивна */
+.lightbox-step--off {
+  opacity: 0.3;
+}
+
+.lightbox-position {
+  opacity: 0.8;
+}
+
+.lightbox-close {
+  text-decoration: underline;
+}
+
+/* Кадр целиком кликабелен и не тащится как ссылка при свайпе по ленте */
+.showcase-open {
+  display: block;
+  position: absolute;
+  inset: 0;
+  -webkit-user-drag: none;
+}
+
+/*
+ * Сколько фотографий у растения — вместо точек листания, которых на витрине
+ * быть не может: они требуют кода, следящего за прокруткой.
+ */
+.showcase-count {
+  position: absolute;
+  z-index: 2;
+  top: var(--space-sm);
+  right: var(--space-sm);
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-glass);
+  color: #fff;
+  font-size: var(--text-xs);
 }
 
 /* ---------- Отзыв публикации ---------- */

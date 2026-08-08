@@ -164,6 +164,9 @@ export default async function CollectionPage({ params }: PageProps) {
   const { collection, plants } = data
   const base = blobBaseUrl()
 
+  const title = collection.title || 'Plant collection'
+  const titleScale = title.length <= 20 ? '' : title.length <= 44 ? ' headline-line--mid' : ' headline-line--small'
+
   return (
     <div className="showcase">
       {/*
@@ -177,7 +180,13 @@ export default async function CollectionPage({ params }: PageProps) {
       */}
       <header className="showcase-header">
         <div className="headline">
-          <h1 className="headline-line">{collection.title || 'Plant collection'}</h1>
+          {/*
+            Кегль названия зависит от его длины, и считает это сервер: длина
+            строки ему известна, а CSS такого не умеет. Короткое название
+            получает тот же кегль, что имя приложения на главной; предел поля —
+            120 знаков, и на них 12vw дали бы стену текста.
+          */}
+          <h1 className={`headline-line${titleScale}`}>{title}</h1>
 
           {collection.total_price !== null && (
             <p className="headline-line">${Number(collection.total_price).toFixed(2)}</p>
@@ -212,7 +221,7 @@ export default async function CollectionPage({ params }: PageProps) {
         <div className="showcase-grid">
           {plants.map((plant, index) => (
             <article className="showcase-card" key={index}>
-              <Photos base={base} plant={plant} eager={index === 0} />
+              <Photos base={base} plant={plant} eager={index === 0} plantIndex={index} />
 
               <div className="showcase-body">
                 <h2 className="showcase-name">{plant.name}</h2>
@@ -229,6 +238,14 @@ export default async function CollectionPage({ params }: PageProps) {
             </article>
           ))}
         </div>
+      )}
+
+      {/*
+        Полноэкранный просмотр. Разметка лежит в конце страницы, показывается
+        по `:target` — см. `Lightbox`.
+      */}
+      {base && plants.some((plant) => plant.photos.length > 0) && (
+        <Lightbox base={base} plants={plants} />
       )}
 
       {/*
@@ -334,7 +351,17 @@ function Unavailable({ id }: { id: string }) {
  * `alt=""`, на отсутствии `alt` и на обнулённом размере шрифта. Рядом с
  * подписью он читается как то, чем и является.
  */
-function Photos({ base, plant, eager }: { base: string | null; plant: PlantRow; eager: boolean }) {
+function Photos({
+  base,
+  plant,
+  eager,
+  plantIndex,
+}: {
+  base: string | null
+  plant: PlantRow
+  eager: boolean
+  plantIndex: number
+}) {
   /*
    * Форму рамки задаёт обложка — первая фотография (тикет X5).
    *
@@ -358,6 +385,16 @@ function Photos({ base, plant, eager }: { base: string | null; plant: PlantRow; 
 
   return (
     <div className="showcase-strip">
+      {/*
+        Сколько фотографий у растения. На витрине нет точек листания — они
+        требуют кода, который следит за прокруткой, — и без этой подписи о том,
+        что лента листается, догадаться нечем.
+      */}
+      {plant.photos.length > 1 && (
+        <span className="showcase-count" aria-hidden="true">
+          {plant.photos.length} photos
+        </span>
+      )}
       {plant.photos.map((photo, photoIndex) => (
         /*
          * Ключ с номером, а не один путь: путь это хеш содержимого, и одна и та
@@ -367,22 +404,121 @@ function Photos({ base, plant, eager }: { base: string | null; plant: PlantRow; 
          * обязана рисовать и их. Найдено ревью F3.
          */
         <Frame key={`${photo.path}-${photoIndex}`} style={frameStyle}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            className="showcase-photo"
-            src={`${base}/${photo.path}`}
-            width={photo.width}
-            height={photo.height}
-            // Жадно грузится ровно одна картинка — первая у первой карточки.
-            // Остальные либо ниже по странице, либо правее в ленте, и до них
-            // ещё надо долистать.
-            loading={eager && photoIndex === 0 ? 'eager' : 'lazy'}
-            decoding="async"
-            alt=""
-          />
+          {/*
+            Кадр — ссылка на полноэкранный просмотр (см. `Lightbox` ниже).
+            Обычная ссылка на якорь: гость нажимает, срабатывает `:target`, и
+            фотография открывается во весь экран **без единой строчки скрипта**.
+            Требование C5 — страница обязана работать без JavaScript — остаётся
+            выполненным буквально, а не с оговоркой.
+          */}
+          <a className="showcase-open" href={`#ph-${plantIndex}-${photoIndex}`} aria-label={`Open photo ${photoIndex + 1} of ${plant.name}`}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              className="showcase-photo"
+              src={`${base}/${photo.path}`}
+              width={photo.width}
+              height={photo.height}
+              // Жадно грузится ровно одна картинка — первая у первой карточки.
+              // Остальные либо ниже по странице, либо правее в ленте, и до них
+              // ещё надо долистать.
+              loading={eager && photoIndex === 0 ? 'eager' : 'lazy'}
+              decoding="async"
+              alt=""
+            />
+          </a>
         </Frame>
       ))}
     </div>
+  )
+}
+
+/**
+ * Полноэкранный просмотр фотографии — без единой строчки скрипта (правка по
+ * замечанию владельца: «при нажатии не открывается карточка растения, хотя бы
+ * галерея на весь экран»).
+ *
+ * Работает на `:target`: кадр в ленте — ссылка на якорь, а по этому якорю
+ * лежит скрытый блок, который CSS показывает, когда адрес страницы на него
+ * указывает. Приём старый и держится ровно на том, что здесь и требуется:
+ * **страница обязана работать без JavaScript** (тикет C5). Клиентский
+ * просмотрщик из приложения сюда не переносится — он потянул бы за собой
+ * рантайм на страницу, которую открывают по чужой ссылке в незнакомом браузере.
+ *
+ * Чего этот приём не умеет, и это честная цена: закрытие свайпом вниз и зум
+ * двумя пальцами по нашей воле. Зум остаётся системный — картинка открыта во
+ * весь экран, и браузер увеличивает её сам. Закрытие — нажатие в любом месте,
+ * крестик и кнопка «назад»: каждое открытие добавляет запись в историю.
+ *
+ * Соседние фотографии переключаются ссылками «‹» и «›» — той же природы, что и
+ * открытие. Листание пальцем внутри просмотра потребовало бы кода.
+ */
+function Lightbox({ base, plants }: { base: string; plants: PlantRow[] }) {
+  return (
+    <>
+      {plants.flatMap((plant, plantIndex) =>
+        plant.photos.map((photo, photoIndex) => {
+          const id = `ph-${plantIndex}-${photoIndex}`
+          const total = plant.photos.length
+
+          return (
+            <div className="lightbox" id={id} key={id}>
+              {/*
+                Подложка — ссылка на пустой якорь: нажатие мимо картинки
+                закрывает просмотр. Лежит первой, поэтому картинка и панель
+                рисуются поверх неё.
+              */}
+              <a className="lightbox-dismiss" href="#" aria-label="Close photo" />
+
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className="lightbox-image"
+                src={`${base}/${photo.path}`}
+                width={photo.width}
+                height={photo.height}
+                /*
+                 * Ленивая загрузка обязательна: иначе коллекция из сорока
+                 * растений тянула бы сорок полноразмерных картинок вторым
+                 * комплектом ещё до того, как гость нажал хоть одну.
+                 */
+                loading="lazy"
+                decoding="async"
+                alt={`${plant.name}, photo ${photoIndex + 1} of ${total}`}
+              />
+
+              <div className="lightbox-bar">
+                {photoIndex > 0 ? (
+                  <a className="lightbox-step" href={`#ph-${plantIndex}-${photoIndex - 1}`} aria-label="Previous photo">
+                    ‹
+                  </a>
+                ) : (
+                  <span className="lightbox-step lightbox-step--off" aria-hidden="true">
+                    ‹
+                  </span>
+                )}
+
+                <span className="lightbox-position">
+                  {plant.name} · {photoIndex + 1} / {total}
+                </span>
+
+                {photoIndex < total - 1 ? (
+                  <a className="lightbox-step" href={`#ph-${plantIndex}-${photoIndex + 1}`} aria-label="Next photo">
+                    ›
+                  </a>
+                ) : (
+                  <span className="lightbox-step lightbox-step--off" aria-hidden="true">
+                    ›
+                  </span>
+                )}
+
+                <a className="lightbox-close" href="#">
+                  Close
+                </a>
+              </div>
+            </div>
+          )
+        })
+      )}
+    </>
   )
 }
 
