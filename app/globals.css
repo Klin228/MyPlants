@@ -2456,6 +2456,136 @@ body {
   text-decoration: none;
 }
 
+/* ---------- Лендинг ---------- */
+
+/*
+ * Единственная индексируемая страница продукта (тикет J4).
+ *
+ * Своя раскладка, а не `.page`: у главной сверху плотная шапка и плавающая
+ * кнопка, а здесь читают текст сверху вниз. Ширина ограничена по мере
+ * читаемости, а не по ширине экрана — строка в 90 знаков на ноутбуке
+ * прочитывается хуже, чем на телефоне.
+ */
+.landing {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: max(var(--space-3xl), var(--safe-top)) max(var(--space-lg), var(--safe-right))
+    max(var(--space-3xl), var(--safe-bottom)) max(var(--space-lg), var(--safe-left));
+  background-color: var(--color-bg);
+}
+
+.landing-hero {
+  margin-bottom: var(--space-3xl);
+}
+
+/*
+ * Заголовок — тот же приём, что шапка приложения и витрина: дисплейная
+ * гарнитура, вес 900, плотный интерлиньяж. `BRAND.md` называет его голосом
+ * продукта, и лендинг обязан говорить им же, иначе страница и приложение
+ * выглядят как два разных продукта.
+ *
+ * Кегль меньше, чем у шапки: здесь заголовок из девяти слов, а не из одного
+ * имени, и 12vw превратили бы его в стену.
+ */
+.landing-title {
+  margin: 0 0 var(--space-lg) 0;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 8vw, 3.25rem);
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+
+.landing-lead {
+  margin: 0 0 var(--space-2xl) 0;
+  font-size: var(--text-lg);
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+/*
+ * Кнопки в колонку на телефоне и в ряд от 480 пикселей.
+ *
+ * В ряд на узком экране они делили бы ширину пополам, и «See an example
+ * collection» переносилось бы в три строки — при том что эта кнопка по замыслу
+ * важнее первой.
+ */
+.landing-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+@media (min-width: 480px) {
+  .landing-actions {
+    flex-direction: row;
+  }
+
+  /* В ряду кнопки делят ширину поровну — здесь растяжка и нужна */
+  .landing-actions .landing-cta {
+    flex: 1 1 0;
+  }
+}
+
+.landing-cta {
+  /*
+   * `0 0 auto`, а не `1`. У `.btn--primary` стоит `flex: 1` — он нужен в ряду
+   * кнопок формы, — и в колонке эта же строчка растит кнопку на всю свободную
+   * **высоту**: зелёный прямоугольник в треть экрана. Ровно та же ловушка, что
+   * поймалась на пустом экране в J3; в ряду ширину делит правило в медиазапросе
+   * ниже.
+   */
+  flex: 0 0 auto;
+  justify-content: center;
+  border-radius: var(--radius-lg);
+  text-align: center;
+  text-decoration: none;
+}
+
+.landing-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xl);
+  margin-bottom: var(--space-3xl);
+}
+
+.landing-block-title {
+  margin: 0 0 var(--space-sm) 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 900;
+  line-height: 1.15;
+  color: var(--color-text);
+}
+
+.landing-block-text {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+/*
+ * Блок про ограничения отделён поверхностью, а не только отступом: он говорит
+ * обратное всему, что выше, и должен читаться как отдельный разговор, а не как
+ * четвёртое преимущество.
+ */
+.landing-limits {
+  margin-bottom: var(--space-2xl);
+  padding: var(--space-xl);
+  border-radius: var(--radius-xl);
+  background-color: var(--color-surface-muted);
+}
+
+.landing-foot {
+  font-size: var(--text-sm);
+}
+
+.landing-foot a {
+  color: var(--color-text-subtle);
+}
+
 /* ---------- Отзыв публикации ---------- */
 
 .link-button--danger {

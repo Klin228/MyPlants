@@ -22,6 +22,13 @@ export default function ServiceWorkerRegister() {
       return
     }
 
+    // Лендинг — по той же причине (тикет J4): человек пришёл из поиска
+    // почитать, что это такое, а не ставить себе приложение офлайн. Ставить
+    // сервис-воркер тому, кто ещё не решил, — работа без спроса.
+    if (pathname === '/about') {
+      return
+    }
+
     if (!('serviceWorker' in navigator)) {
       console.warn('[PWA] Service Worker not supported')
       return
