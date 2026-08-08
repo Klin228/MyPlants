@@ -81,6 +81,15 @@ export const metadata: Metadata = {
   title: 'Plantorium',
   description: 'Personal plant collection manager',
   manifest: '/manifest.json',
+  /*
+   * Иконка для домашнего экрана iOS. Без неё Safari берёт **скриншот страницы**
+   * — установленное приложение получало бы вместо знака кусок собственного
+   * первого экрана. Файл лежит и по корневому адресу, куда Safari смотрит сам,
+   * но объявление надёжнее: путь по умолчанию не гарантирован.
+   */
+  icons: {
+    apple: '/apple-touch-icon.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',

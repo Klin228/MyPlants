@@ -10,17 +10,26 @@
  * фотографий в собственных пропорциях (`BRAND.md`: её не надо ретушировать в
  * ровную сетку, она и есть форма продукта).
  *
- * **Почему рисунки, а не фотографии.** Фотографий растений, которые можно
- * положить в репозиторий, у проекта нет: чужие снимки — вопрос лицензии, а не
- * вкуса. Рисунки решают ту же задачу честно и весят три килобайта. Заменить их
- * настоящими снимками — работа на десять минут: см. `.collage-photo` в
- * `globals.css`, рамка и тень уже готовы и рассчитаны на любое содержимое.
+ * **Фотографии или рисунки — решает наличие файла.**
+ *
+ * Владелец кладёт свои снимки в `public/landing/` под именами `plant-1.jpg` …
+ * `plant-4.jpg`; лежит файл — карточка показывает его, не лежит — остаётся
+ * рисунок. Проверка файловой системы на сборке, а не `onError` в браузере:
+ * сломанная картинка успела бы мигнуть у каждого посетителя.
+ *
+ * Рисунки при этом остаются в коде не как заглушка на пять минут, а как рабочий
+ * запасной путь: чужие снимки в репозитории — вопрос лицензии, и человек,
+ * поднявший приложение себе, получит осмысленный первый экран без единого
+ * чужого файла.
  *
  * Компонент серверный: ни строчки клиентского кода. Движение на прокрутке
  * добавляет `LandingParallax` — он ничего не рисует, только двигает уже
  * отрисованное. `aria-hidden` — это украшение, и читалке экрана здесь нечего
  * сказать.
  */
+
+import fs from 'node:fs'
+import path from 'node:path'
 
 interface Card {
   key: string
@@ -137,18 +146,60 @@ const CARDS: Card[] = [
   { key: 'd', name: 'Astrophytum', price: '$62.00', shape: 'tall', art: cactus },
 ]
 
+/**
+ * Есть ли снимок для этой карточки.
+ *
+ * Читается на сервере при сборке страницы — маршрут статический, значит ровно
+ * один раз, а не на каждый запрос. Расширения перебираются: люди выкладывают и
+ * `.jpg`, и `.jpeg`, и `.webp`, и заставлять владельца переименовывать файл
+ * ради нашего удобства незачем.
+ */
+function photoFor(index: number): string | null {
+  const dir = path.join(process.cwd(), 'public', 'landing')
+
+  for (const ext of ['jpg', 'jpeg', 'png', 'webp']) {
+    const name = `plant-${index}.${ext}`
+    if (fs.existsSync(path.join(dir, name))) return `/landing/${name}`
+  }
+
+  return null
+}
+
 export default function LandingCollage() {
   return (
     <div className="collage" aria-hidden="true">
-      {CARDS.map((card) => (
+      {CARDS.map((card, index) => {
+        const photo = photoFor(index + 1)
+
+        return (
         <figure key={card.key} className={`collage-card collage-card--${card.key}`}>
-          <div className={`collage-photo collage-photo--${card.shape}`}>{card.art}</div>
+          <div className={`collage-photo collage-photo--${card.shape}`}>
+            {photo ? (
+              /*
+                Размеры не заданы намеренно: пропорцию держит рамка, а сама
+                картинка растянута по ней `object-fit: cover`. Первая карточка
+                грузится сразу, остальные лениво — она на первом экране, и её
+                задержка это задержка первого впечатления.
+              */
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={photo}
+                alt=""
+                className="collage-image"
+                loading={index === 0 ? 'eager' : 'lazy'}
+                decoding="async"
+              />
+            ) : (
+              card.art
+            )}
+          </div>
           <figcaption className="collage-caption">
             <span className="collage-name">{card.name}</span>
             <span className="collage-price">{card.price}</span>
           </figcaption>
         </figure>
-      ))}
+        )
+      })}
     </div>
   )
 }

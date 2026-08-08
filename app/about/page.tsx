@@ -71,6 +71,19 @@ export default function LandingPage() {
 
   return (
     <main className="landing">
+      {/*
+        Знак слева вверху — текстовый, набранный Fraunces, а не картинка.
+        `BRAND.md` говорит прямо: если знак появится, это должен быть текстовый
+        знак, а не листик — листик ставит продукт обратно в категорию «уход»,
+        из которой он весь и выведен. Текстом он вдобавок остаётся резким на
+        любом экране и сам меняет цвет в тёмной теме.
+      */}
+      <header className="landing-head">
+        <a href="/" className="landing-wordmark">
+          Plantorium
+        </a>
+      </header>
+
       <section className="landing-hero">
         <div className="landing-hero-text">
         {/*
